@@ -1,0 +1,47 @@
+version: "3.9"
+
+services:
+  # ── FastAPI Backend ──────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: spotify-discovery-backend
+    ports:
+      - "8081:8081"
+    env_file:
+      - .env
+    environment:
+      - WORKSPACE_MODE=offline
+    volumes:
+      - ./data:/app/data
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8081/api/v1/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # ── Streamlit Frontend ───────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: spotify-discovery-frontend
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env
+    environment:
+      - API_BASE_URL=http://backend:8081/api/v1
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: on-failure
+
+volumes:
+  data:
+    driver: local

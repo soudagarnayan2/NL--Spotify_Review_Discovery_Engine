@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Review Discovery Engine · Spotify AI-Powered</title>
+  <meta name="description" content="Quantify sentiment from App Store, Google Play, Twitter, and Reddit reviews — then ask research questions, or describe the sound you're chasing." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <!-- Marked.js: lightweight markdown → HTML renderer for VoC report display -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════
+       NAVBAR
+  ═══════════════════════════════════════════ -->
+  <nav class="navbar">
+    <div class="nav-left">
+      <div class="nav-logo">
+        <svg class="logo-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="2" y="14" width="4" height="8" rx="1" fill="#1DB954"/>
+          <rect x="8" y="9" width="4" height="13" rx="1" fill="#1DB954"/>
+          <rect x="14" y="5" width="4" height="17" rx="1" fill="#1DB954"/>
+          <rect x="20" y="2" width="4" height="20" rx="1" fill="#1DB954" opacity="0.5"/>
+        </svg>
+        <span class="logo-text">Review Discovery</span>
+      </div>
+    </div>
+
+    <div class="nav-center">
+      <div class="nav-tabs" id="navTabs">
+        <button class="nav-tab active" data-tab="discover" onclick="switchTab('discover')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          Discover
+        </button>
+        <button class="nav-tab" data-tab="dashboard" onclick="switchTab('dashboard')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Dashboard
+        </button>
+        <button class="nav-tab" data-tab="pipeline" onclick="switchTab('pipeline')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+          Pipeline
+        </button>
+        <button class="nav-tab" data-tab="playlists" onclick="switchTab('playlists')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          Playlists
+        </button>
+
+      </div>
+    </div>
+
+    <div class="nav-right">
+      <div class="search-bar">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" placeholder="Search..." id="globalSearch" />
+      </div>
+      <button class="icon-btn" id="themeToggle" onclick="toggleTheme()" title="Toggle theme">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ═══════════════════════════════════════════
+       MAIN CONTENT
+  ═══════════════════════════════════════════ -->
+  <main class="main">
+
+    <!-- ── TAB: DISCOVER ─────────────────────── -->
+    <section class="tab-panel active" id="tab-discover">
+
+      <!-- Hero -->
+      <div class="hero">
+        <span class="hero-badge">SPOTIFY · AI-POWERED</span>
+        <h1 class="hero-title">Review Discovery Engine</h1>
+        <p class="hero-subtitle">Quantify sentiment from App Store, Google Play, Twitter, and Reddit reviews — then ask research questions, or describe the sound you're chasing.</p>
+      </div>
+
+      <!-- Discovery Assistant Card -->
+      <div class="assistant-card" id="assistantCard">
+        <div class="assistant-header">
+          <svg class="sparkle-icon" width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" fill="#1DB954"/>
+          </svg>
+          <span class="assistant-title">Review Discovery Assistant</span>
+        </div>
+        <p class="assistant-sub">Ask a review question, or describe the music you're looking for</p>
+
+        <div class="input-wrapper" id="inputWrapper">
+          <textarea
+            id="queryInput"
+            class="query-input"
+            rows="3"
+            placeholder="What unmet needs emerge across reviews?"
+          ></textarea>
+        </div>
+
+        <div class="chips-row">
+          <button class="chip" onclick="setQuery(this)">"What unmet needs emerge across reviews?"</button>
+          <button class="chip" onclick="setQuery(this)">"Chill lofi beats for studying"</button>
+          <button class="chip" onclick="setQuery(this)">"Sentiment shift in latest update"</button>
+          <button class="chip" onclick="setQuery(this)">"Top complaints about playlist UX"</button>
+        </div>
+
+        <div class="actions-row">
+          <div class="action-btns">
+            <button class="btn-primary" id="searchBtn" onclick="runSearch()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              Search
+            </button>
+          </div>
+          <button class="clear-link" onclick="clearSearch()">CLEAR SEARCH RESULT</button>
+        </div>
+      </div>
+
+      <!-- Results Panel (hidden until search) -->
+      <div class="results-panel" id="resultsPanel" style="display:none;">
+        <div class="results-split">
+
+          <!-- AI Analysis & Supporting Evidence (Full Width) -->
+          <div class="results-left">
+            <div class="section-header">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" fill="#1DB954"/></svg>
+              <span>AI Analysis</span>
+            </div>
+            <div class="analysis-card" id="analysisContent"></div>
+
+            <div class="evidence-section" id="evidenceSection">
+              <h4 class="evidence-title">Supporting Evidence from Reviews</h4>
+              <div class="evidence-cards" id="evidenceCards"></div>
+              <button class="btn-outline-sm" id="loadMoreEvidenceBtn" onclick="loadMoreEvidence()" style="display:none;">Load more evidence</button>
+            </div>
+          </div>
+
+          <!-- Recommended Songs (Hidden by default, shown if tracks present) -->
+          <div class="results-right" id="resultsRight" style="display:none;">
+            <div class="section-header">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+              <span>Recommended Songs</span>
+            </div>
+            <div class="tracks-list" id="recommendedTracksList">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ── TAB: DASHBOARD ────────────────────── -->
+    <section class="tab-panel" id="tab-dashboard">
+      <div class="page-header">
+        <h2 class="page-title">Analytics Dashboard</h2>
+        <button class="btn-outline-sm" id="refreshDashboardBtn" onclick="refreshDashboard()">
+          <svg class="refresh-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+          Refresh
+        </button>
+      </div>
+
+      <div class="dashboard-body" id="dashboardBody">
+        <!-- KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <span class="kpi-value" id="kpi-total-reviews">76</span>
+            <span class="kpi-label">Total Reviews Analyzed</span>
+            <span class="kpi-sub">Across 4 platforms</span>
+          </div>
+          <div class="kpi-card danger">
+            <span class="kpi-value" id="kpi-negative-sentiment">42</span>
+            <span class="kpi-label">Negative Sentiment</span>
+            <span class="kpi-trend">↑ 8% from last week</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-value-sm" id="kpi-top-pain-value">Algorithmic Bubble</span>
+            <span class="kpi-label">Top Pain Point</span>
+            <span class="kpi-sub" id="kpi-top-pain-sub">23 mentions</span>
+          </div>
+          <div class="kpi-card warning">
+            <span class="kpi-value" id="kpi-churn-risk-value">55%</span>
+            <span class="kpi-label">Churn Risk Score</span>
+            <div class="risk-bar"><div class="risk-fill" id="kpi-churn-risk-fill" style="width:55%"></div></div>
+          </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="charts-row">
+          <div class="chart-card">
+            <h3 class="chart-title">Sentiment Breakdown</h3>
+            <div class="donut-wrapper">
+              <svg viewBox="0 0 120 120" class="donut-chart">
+                <circle cx="60" cy="60" r="45" fill="none" stroke="#2a2a2a" stroke-width="18"/>
+                <!-- Negative 42/76 = 55.3% -->
+                <circle id="donut-circle-negative" cx="60" cy="60" r="45" fill="none" stroke="#e74c3c" stroke-width="18"
+                  stroke-dasharray="156.5 126.6" stroke-dashoffset="0" transform="rotate(-90 60 60)"/>
+                <!-- Neutral 26/76 = 34.2% -->
+                <circle id="donut-circle-neutral" cx="60" cy="60" r="45" fill="none" stroke="#888" stroke-width="18"
+                  stroke-dasharray="97 186" stroke-dashoffset="-156.5" transform="rotate(-90 60 60)"/>
+                <!-- Positive 8/76 = 10.5% -->
+                <circle id="donut-circle-positive" cx="60" cy="60" r="45" fill="none" stroke="#1DB954" stroke-width="18"
+                  stroke-dasharray="29.8 253.2" stroke-dashoffset="-253.5" transform="rotate(-90 60 60)"/>
+                <text id="donut-total-text" x="60" y="55" text-anchor="middle" fill="#fafafa" font-size="13" font-weight="700">76</text>
+                <text x="60" y="70" text-anchor="middle" fill="#888" font-size="7">reviews</text>
+              </svg>
+              <div class="donut-legend" id="donutLegend">
+                <div class="legend-item"><span class="legend-dot" style="background:#e74c3c"></span> Negative (42)</div>
+                <div class="legend-item"><span class="legend-dot" style="background:#888"></span> Neutral (26)</div>
+                <div class="legend-item"><span class="legend-dot" style="background:#1DB954"></span> Positive (8)</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <h3 class="chart-title">Topic Frequency</h3>
+            <div class="bar-chart" id="dashboard-topics-bar-chart">
+              <div class="bar-row">
+                <span class="bar-label">Algorithmic Bubble</span>
+                <div class="bar-track"><div class="bar-fill" style="width:60%">23</div></div>
+              </div>
+              <div class="bar-row">
+                <span class="bar-label">General Feedback</span>
+                <div class="bar-track"><div class="bar-fill secondary" style="width:94%">36</div></div>
+              </div>
+              <div class="bar-row">
+                <span class="bar-label">Decision Overload</span>
+                <div class="bar-track"><div class="bar-fill" style="width:18%">7</div></div>
+              </div>
+              <div class="bar-row">
+                <span class="bar-label">Taste Pollution</span>
+                <div class="bar-track"><div class="bar-fill" style="width:16%">6</div></div>
+              </div>
+              <div class="bar-row">
+                <span class="bar-label">Smart Shuffle</span>
+                <div class="bar-track"><div class="bar-fill" style="width:10%">4</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Critical Feedback -->
+        <div class="feedback-section">
+          <h3 class="section-title">Critical Feedback Samples</h3>
+          <div class="feedback-cards" id="dashboard-feedback-cards">
+            <div class="feedback-card">
+              <div class="feedback-top">
+                <span class="platform-badge reddit">Reddit</span>
+                <span class="topic-chip">Algorithmic Bubble</span>
+              </div>
+              <p class="feedback-quote">"I'm so tired of Spotify playing the same 15 songs on repeat. My Daily Mix is just songs from my own liked playlist."</p>
+              <div class="feedback-meta">
+                <span>u/reddit_listener_4821</span>
+                <span>2026-07-01</span>
+                <a href="#" class="view-link" onclick="event.preventDefault(); openReviewModal({ platform: 'reddit', topic: 'Algorithmic Bubble / Recommendation Repetition', content: 'I\'m so tired of Spotify playing the same 15 songs on repeat. My Daily Mix is just songs from my own liked playlist.', user: 'u/reddit_listener_4821', date: '2026-07-01', sentiment: 'Negative' })">View full →</a>
+              </div>
+            </div>
+            <div class="feedback-card">
+              <div class="feedback-top">
+                <span class="platform-badge play">Play Store</span>
+                <span class="topic-chip">Smart Shuffle</span>
+              </div>
+              <p class="feedback-quote">"I skipped this song 5 times this week. Why is Spotify still playing it on my smart shuffle? It does not learn."</p>
+              <div class="feedback-meta">
+                <span>play_store_user_2341</span>
+                <span>2026-06-29</span>
+                <a href="#" class="view-link" onclick="event.preventDefault(); openReviewModal({ platform: 'play_store', topic: 'Smart Shuffle loop issues', content: 'I skipped this song 5 times this week. Why is Spotify still playing it on my smart shuffle? It does not learn.', user: 'play_store_user_2341', date: '2026-06-29', sentiment: 'Negative' })">View full →</a>
+              </div>
+            </div>
+            <div class="feedback-card">
+              <div class="feedback-top">
+                <span class="platform-badge appstore">App Store</span>
+                <span class="topic-chip">Taste Pollution</span>
+              </div>
+              <p class="feedback-quote">"My kids' music completely ruined my recommendations. I need a sandbox mode or separate profiles."</p>
+              <div class="feedback-meta">
+                <span>app_store_user_9174</span>
+                <span>2026-06-28</span>
+                <a href="#" class="view-link" onclick="event.preventDefault(); openReviewModal({ platform: 'app_store', topic: 'Taste pollution / Lack of Sandbox mode', content: 'My kids\' music completely ruined my recommendations. I need a sandbox mode or separate profiles.', user: 'app_store_user_9174', date: '2026-06-28', sentiment: 'Negative' })">View full →</a>
+              </div>
+            </div>
+          </div>
+          <div style="text-align: center; margin-top: 1.5rem;">
+            <button class="btn-secondary" id="seeMoreFeedbackBtn" onclick="toggleSeeAllFeedback()">See more</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── TAB: PIPELINE ─────────────────────── -->
+    <section class="tab-panel" id="tab-pipeline">
+      <div class="page-header">
+        <h2 class="page-title">Pipeline Control Panel</h2>
+        <span class="live-badge"><span class="pulse-dot"></span> LIVE</span>
+      </div>
+
+      <!-- Pipeline Steps -->
+      <div class="pipeline-card">
+        <h3 class="pipeline-section-title">Data Ingestion</h3>
+        <div class="pipeline-step" id="step1">
+          <div class="step-info">
+            <span class="step-name">Ingest Reviews</span>
+            <span class="step-desc">App Store, Play Store, Reddit, Twitter</span>
+          </div>
+          <div class="step-controls">
+            <span class="status-chip pass">PASS</span>
+            <span class="step-time">18:13:24 · 5.1s</span>
+            <button class="btn-run" onclick="runPipelineStep('ingest', this)">Run Now</button>
+          </div>
+        </div>
+        <div class="pipeline-step" id="step2">
+          <div class="step-info">
+            <span class="step-name">Analyze Reviews</span>
+            <span class="step-desc">LLM Sentiment + Topic Classification</span>
+          </div>
+          <div class="step-controls">
+            <span class="status-chip pass">PASS</span>
+            <span class="step-time">18:13:24 · 0.2s</span>
+            <button class="btn-run" onclick="runPipelineStep('analyze', this)">Run Now</button>
+          </div>
+        </div>
+        <div class="pipeline-step" id="step3">
+          <div class="step-info">
+            <span class="step-name">Seed Track Catalog</span>
+            <span class="step-desc">Rebuild ChromaDB vector embeddings</span>
+          </div>
+          <div class="step-controls">
+            <span class="status-chip pass">PASS</span>
+            <span class="step-time">18:13:36 · 12.1s</span>
+            <button class="btn-run" onclick="runPipelineStep('seed', this)">Run Now</button>
+          </div>
+        </div>
+
+        <div class="run-all-row">
+          <button class="btn-primary" onclick="runFullPipeline()">
+            ▶ Run Full Pipeline
+          </button>
+          <span class="run-summary">Last run: 2026-07-03 18:13:19 · 17.4s · <span style="color:#1DB954">3/3 passed</span></span>
+        </div>
+      </div>
+
+      <!-- Live Log -->
+      <div class="pipeline-card">
+        <div class="log-header">
+          <h3 class="pipeline-section-title">Pipeline Log</h3>
+          <div class="log-actions">
+            <button class="icon-text-btn" onclick="copyLog()">Copy</button>
+            <button class="icon-text-btn" onclick="clearLog()">Clear</button>
+          </div>
+        </div>
+        <div class="log-terminal" id="logTerminal">
+          <div class="log-line info">============================================================</div>
+          <div class="log-line info">PIPELINE RUN STARTED -- 2026-07-03 18:13:19</div>
+          <div class="log-line info">============================================================</div>
+          <div class="log-line info">&gt;&gt; Step 1 -- Ingest Reviews</div>
+          <div class="log-line pass">   [PASS] Completed in 5.1s</div>
+          <div class="log-line info">   Retained 76 reviews, skipped 24 reviews.</div>
+          <div class="log-line info">&gt;&gt; Step 2 -- Analyze Reviews</div>
+          <div class="log-line pass">   [PASS] Completed in 0.2s</div>
+          <div class="log-line info">   Sentiments: Negative=42, Neutral=26, Positive=8</div>
+          <div class="log-line info">&gt;&gt; Step 3 -- Seed Track Catalog</div>
+          <div class="log-line pass">   [PASS] Completed in 12.1s</div>
+          <div class="log-line info">   Seeded 129 tracks into ChromaDB</div>
+          <div class="log-line info">============================================================</div>
+          <div class="log-line pass">3/3 steps passed · Total: 17.4s</div>
+          <div class="log-line info">============================================================</div>
+        </div>
+      </div>
+
+      <!-- GitHub Actions -->
+      <div class="pipeline-card">
+        <div class="log-header">
+          <h3 class="pipeline-section-title">GitHub Actions History</h3>
+          <a href="https://github.com" target="_blank" class="icon-text-btn">View on GitHub ↗</a>
+        </div>
+        <table class="gh-table">
+          <thead>
+            <tr><th>#</th><th>Date</th><th>Duration</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>#1</td>
+              <td>2026-07-03 18:13</td>
+              <td>17.4s</td>
+              <td><span class="status-chip pass">✓ Passed</span></td>
+            </tr>
+            <tr>
+              <td>#2</td>
+              <td>Scheduled: 2026-07-04 00:00 UTC</td>
+              <td>—</td>
+              <td><span class="status-chip pending">⏳ Pending</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+    
+    <!-- ── TAB: PLAYLISTS ────────────────────── -->
+    <section class="tab-panel" id="tab-playlists">
+      <div class="page-header">
+        <h2 class="page-title">Playlist Creator</h2>
+      </div>
+
+      <!-- Spotify OAuth Connection Banner -->
+      <div class="oauth-banner">
+        <div class="oauth-text">
+          Connect your <strong>Spotify</strong> account to export playlists directly to your library.
+        </div>
+        <button class="btn-primary" onclick="connectSpotify()">Connect Spotify</button>
+      </div>
+
+      <div class="playlist-builder">
+        <div class="playlist-form">
+          <label class="form-label" for="playlistName">Playlist Name</label>
+          <input type="text" id="playlistName" class="form-input" placeholder="My AI Discovery Playlist" />
+        </div>
+
+        <label class="form-label">Tracks in Playlist</label>
+        <div class="playlist-tracks" id="playlistTracks">
+          <!-- Added dynamically -->
+        </div>
+
+        <div style="margin-top: 2rem; display: flex; gap: 1rem;">
+          <button class="btn-primary" onclick="createPlaylist()">Export to Spotify</button>
+          <button class="btn-secondary" onclick="switchTab('discover')">Add More Songs</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ═══════════════════════════════════════════
+       FOOTER
+  ═══════════════════════════════════════════ -->
+  <footer class="footer">
+    <div class="footer-left">
+      <span>Review Discovery Engine © 2024</span>
+      <span class="footer-sep">|</span>
+      <span class="live-indicator">
+        <span class="pulse-dot"></span>
+        LIVE · <span id="lastSync">LAST SYNCED 2 MIN AGO</span>
+      </span>
+    </div>
+    <div class="footer-right">
+      <a href="#" class="footer-link">Live Status</a>
+      <a href="#" class="footer-link">Support</a>
+      <a href="#" class="footer-link">Documentation</a>
+    </div>
+  </footer>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="toast"></div>
+
+  <!-- Review Detail Modal -->
+  <div class="modal-overlay" id="reviewModal" style="display: none;" onclick="closeReviewModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3 class="modal-title">Review Context</h3>
+        <button class="modal-close" onclick="closeReviewModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-meta-row">
+          <span class="platform-badge" id="modal-platform">Reddit</span>
+          <span class="topic-chip" id="modal-topic">Algorithmic Bubble</span>
+          <span class="sentiment-badge danger" id="modal-sentiment">Negative</span>
+        </div>
+        <div class="modal-review-content">
+          <p class="modal-quote" id="modal-quote">"Review quote..."</p>
+        </div>
+        <div class="modal-footer-meta">
+          <div class="meta-item">
+            <span class="meta-label">Author</span>
+            <span class="meta-value" id="modal-author">u/reddit_listener_4821</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Date</span>
+            <span class="meta-value" id="modal-date">2026-07-01</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

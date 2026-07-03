@@ -1,0 +1,214 @@
+{
+  "test_date": "2026-07-03T17:42:36.984225",
+  "total_queries": 29,
+  "passed": 26,
+  "accuracy_pct": 89.66,
+  "avg_score": 0.6618,
+  "target_pct": 85,
+  "overall_pass": true,
+  "results": [
+    {
+      "query": "upbeat synthwave for driving at night",
+      "score": 0.833,
+      "tracks_found": 4,
+      "top_track": "Nightcall by Kavinsky",
+      "pass": true
+    },
+    {
+      "query": "calm acoustic folk songs for autumn",
+      "score": 0.8,
+      "tracks_found": 5,
+      "top_track": "Big Black Car by Gregory Alan Isakov",
+      "pass": true
+    },
+    {
+      "query": "lo-fi beats for studying",
+      "score": 0.875,
+      "tracks_found": 4,
+      "top_track": "Affection by Jinsang",
+      "pass": true
+    },
+    {
+      "query": "energetic hip-hop workout music",
+      "score": 0.333,
+      "tracks_found": 5,
+      "top_track": "Self Care by Mac Miller",
+      "pass": false
+    },
+    {
+      "query": "romantic jazz for a dinner date",
+      "score": 0.667,
+      "tracks_found": 3,
+      "top_track": "Black Gold by Esperanza Spalding",
+      "pass": true
+    },
+    {
+      "query": "dark electronic music with heavy bass",
+      "score": 0.5,
+      "tracks_found": 3,
+      "top_track": "Schism by Tool",
+      "pass": true
+    },
+    {
+      "query": "peaceful ambient music for meditation",
+      "score": 0.833,
+      "tracks_found": 4,
+      "top_track": "Weightless by Marconi Union",
+      "pass": true
+    },
+    {
+      "query": "feel-good indie pop for summer",
+      "score": 0.7,
+      "tracks_found": 5,
+      "top_track": "Cruel Summer by Taylor Swift",
+      "pass": true
+    },
+    {
+      "query": "emotional piano pieces that feel cinematic",
+      "score": 1.0,
+      "tracks_found": 2,
+      "top_track": "Experience by Ludovico Einaudi",
+      "pass": true
+    },
+    {
+      "query": "aggressive rock anthems for the gym",
+      "score": 0.722,
+      "tracks_found": 3,
+      "top_track": "Everlong by Foo Fighters",
+      "pass": true
+    },
+    {
+      "query": "dreamy R&B love songs",
+      "score": 0.833,
+      "tracks_found": 3,
+      "top_track": "Best Part by Daniel Caesar ft. H.E.R.",
+      "pass": true
+    },
+    {
+      "query": "funky groovy jazz fusion",
+      "score": 0.6,
+      "tracks_found": 5,
+      "top_track": "Neon Guts by Thundercat",
+      "pass": true
+    },
+    {
+      "query": "melancholic indie folk about heartbreak",
+      "score": 0.6,
+      "tracks_found": 5,
+      "top_track": "Skinny Love by Bon Iver",
+      "pass": true
+    },
+    {
+      "query": "high energy dance music for a party",
+      "score": 0.667,
+      "tracks_found": 1,
+      "top_track": "Kar Gayi Chull by Badshah, Fazilpuria, Sukriti Kakar, Neha Kakkar",
+      "pass": true
+    },
+    {
+      "query": "soothing reggae music for relaxation",
+      "score": 0.667,
+      "tracks_found": 2,
+      "top_track": "Is This Love by Bob Marley",
+      "pass": true
+    },
+    {
+      "query": "nostalgic retro synthpop from the 80s",
+      "score": 0.375,
+      "tracks_found": 2,
+      "top_track": "A Real Hero by College & Electric Youth",
+      "pass": false
+    },
+    {
+      "query": "slow country ballads with soulful vocals",
+      "score": 0.5,
+      "tracks_found": 3,
+      "top_track": "Tennessee Whiskey by Chris Stapleton",
+      "pass": true
+    },
+    {
+      "query": "afrobeats for dancing with friends",
+      "score": 0.2,
+      "tracks_found": 5,
+      "top_track": "Ojuelegba by Wizkid",
+      "pass": false
+    },
+    {
+      "query": "instrumental music without vocals for focus",
+      "score": 0.5,
+      "tracks_found": 1,
+      "top_track": "Weightless by Marconi Union",
+      "pass": true
+    },
+    {
+      "query": "psychedelic rock with a groovy vibe",
+      "score": 0.688,
+      "tracks_found": 4,
+      "top_track": "Electric Feel by MGMT",
+      "pass": true
+    },
+    {
+      "query": "energetic marathi dance songs",
+      "score": 0.733,
+      "tracks_found": 5,
+      "top_track": "Kombdi Palali by Anand Shinde, Vaishali Samant",
+      "pass": true
+    },
+    {
+      "query": "romantic bollywood 90s love songs",
+      "score": 0.65,
+      "tracks_found": 5,
+      "top_track": "Dheere Dheere Se by Kumar Sanu, Anuradha Paudwal",
+      "pass": true
+    },
+    {
+      "query": "upbeat hindi pop songs",
+      "score": 0.55,
+      "tracks_found": 5,
+      "top_track": "Liggi by Ritviz",
+      "pass": true
+    },
+    {
+      "query": "energetic bhojpuri dance music",
+      "score": 0.933,
+      "tracks_found": 5,
+      "top_track": "Saj Ke Sawar Ke by Khesari Lal Yadav, Priyanka Singh",
+      "pass": true
+    },
+    {
+      "query": "tamil kuthu dance tracks",
+      "score": 0.833,
+      "tracks_found": 5,
+      "top_track": "Arabic Kuthu by Anirudh Ravichander, Jonita Gandhi",
+      "pass": true
+    },
+    {
+      "query": "romantic kannada songs",
+      "score": 0.65,
+      "tracks_found": 5,
+      "top_track": "Belageddu by Vijay Prakash",
+      "pass": true
+    },
+    {
+      "query": "modern bollywood romantic pop",
+      "score": 0.7,
+      "tracks_found": 5,
+      "top_track": "Chaleya by Arijit Singh, Shilpa Rao",
+      "pass": true
+    },
+    {
+      "query": "old classic hindi retro songs",
+      "score": 0.55,
+      "tracks_found": 5,
+      "top_track": "Kabhie Kabhie Mere Dil Mein by Mukesh",
+      "pass": true
+    },
+    {
+      "query": "traditional rajasthani and punjabi folk songs",
+      "score": 0.7,
+      "tracks_found": 5,
+      "top_track": "Kesariya Balam by Ila Arun",
+      "pass": true
+    }
+  ]
+}

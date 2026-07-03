@@ -1,0 +1,46 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install dependencies
+COPY requirements-frontend.txt .
+RUN pip install --no-cache-dir -r requirements-frontend.txt
+
+# Copy application code
+COPY src/phase4/ ./src/phase4/
+COPY data/ ./data/
+
+# Streamlit configuration
+RUN mkdir -p /root/.streamlit
+RUN echo '\
+[server]\n\
+port = 8501\n\
+address = "0.0.0.0"\n\
+headless = true\n\
+enableCORS = false\n\
+enableXsrfProtection = false\n\
+\n\
+[theme]\n\
+primaryColor = "#1DB954"\n\
+backgroundColor = "#191414"\n\
+secondaryBackgroundColor = "#282828"\n\
+textColor = "#FFFFFF"\n\
+font = "sans serif"\n\
+\n\
+[browser]\n\
+gatherUsageStats = false\n\
+' > /root/.streamlit/config.toml
+
+# Copy environment config
+COPY .env .env
+
+# Expose port
+EXPOSE 8501
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD curl -f http://localhost:8501/_stcore/health || exit 1
+
+# Run Streamlit
+CMD ["streamlit", "run", "src/phase4/app.py", \
+     "--server.port=8501", "--server.address=0.0.0.0"]

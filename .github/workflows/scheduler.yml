@@ -1,0 +1,110 @@
+name: Spotify Review Discovery — Scheduled Pipeline
+
+on:
+  # Run daily at midnight UTC
+  schedule:
+    - cron: "0 0 * * *"
+
+  # Allow manual trigger from GitHub UI
+  workflow_dispatch:
+    inputs:
+      run_seed:
+        description: "Re-seed ChromaDB track catalog?"
+        required: false
+        default: "true"
+        type: boolean
+
+jobs:
+  pipeline:
+    name: Data Refresh Pipeline
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
+      SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
+      PYTHONPATH: ${{ github.workspace }}
+
+    steps:
+      # ── 1. Checkout ─────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Python Setup ─────────────────────────────────────────────────
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      # ── 3. Install Dependencies ─────────────────────────────────────────
+      - name: Install backend dependencies
+        run: pip install -r requirements-backend.txt
+
+      # ── 4. Ensure Data Directories Exist ────────────────────────────────
+      - name: Create required directories
+        run: |
+          mkdir -p data/chroma_db
+          mkdir -p data/workspace
+
+      # ── 5. Step 1 — Ingest Reviews ──────────────────────────────────────
+      - name: Step 1 — Ingest Reviews
+        id: ingest
+        run: |
+          echo "▶ Running ingest_reviews.py..."
+          python src/phase1/ingest_reviews.py --limit-scraped 250 --limit-mocked 250
+          echo "✅ Ingest complete"
+        continue-on-error: false
+
+      # ── 6. Step 2 — Analyze Reviews ─────────────────────────────────────
+      - name: Step 2 — Analyze Reviews (LLM + Rules Fallback)
+        id: analyze
+        run: |
+          echo "▶ Running analyze_reviews.py..."
+          python src/phase1/analyze_reviews.py
+          echo "✅ Analysis complete"
+        continue-on-error: false
+
+      # ── 7. Step 3 — Seed Track Catalog (ChromaDB) ───────────────────────
+      - name: Step 3 — Seed ChromaDB Track Catalog
+        id: seed
+        if: ${{ github.event.inputs.run_seed != 'false' }}
+        run: |
+          echo "▶ Running seed_tracks.py..."
+          python src/phase4/seed_tracks.py
+          echo "✅ ChromaDB seeding complete"
+        continue-on-error: false
+
+      # ── 8. Run Precision & Coverage Evaluations ──────────────────────────
+      - name: Step 4 — Run Evaluation Tests
+        id: eval
+        run: |
+          echo "▶ Running precision evaluation..."
+          python src/phase5/evaluate_search_precision.py --quick || true
+          echo "▶ Running catalog coverage evaluation..."
+          python src/phase5/evaluate_catalog_coverage.py --quick || true
+          echo "✅ Evaluation complete"
+        continue-on-error: true   # evaluations are advisory, not blocking
+
+      # ── 9. Pipeline Summary ──────────────────────────────────────────────
+      - name: Pipeline Summary
+        if: always()
+        run: |
+          echo "============================================"
+          echo "📊 PIPELINE SUMMARY"
+          echo "============================================"
+          echo "Ingest:    ${{ steps.ingest.outcome }}"
+          echo "Analyze:   ${{ steps.analyze.outcome }}"
+          echo "Seed:      ${{ steps.seed.outcome }}"
+          echo "Eval:      ${{ steps.eval.outcome }}"
+          echo "============================================"
+          echo "Run at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+
+      # ── 10. Notify on Failure ────────────────────────────────────────────
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ Pipeline failed! Check the logs above."
+          echo "Steps: ingest=${{ steps.ingest.outcome }}, analyze=${{ steps.analyze.outcome }}, seed=${{ steps.seed.outcome }}"
+          exit 1

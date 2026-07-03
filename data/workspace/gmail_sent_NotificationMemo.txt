@@ -1,0 +1,32 @@
+TO: stakeholders@spotify.com
+SUBJECT: [Growth Team] Spotify Insights Report
+
+# Spotify AI Review Discovery Insights Report
+**Generated**: 2026-07-02
+**Total Reviews Analyzed**: 52
+
+## 1. Sentiment Summary:
+- **Negative Feedback**: 14
+- **Neutral Feedback**: 33
+- **Positive Feedback**: 5
+
+## 2. Top Frustrations Identified:
+- *Algorithmic Bubbles / Repetition*: 11 occurrences
+- *Smart Shuffle loop issues*: 6 occurrences
+- *Taste pollution / Lack of Sandbox mode*: 19 occurrences
+- *Decision overload*: 0 occurrences
+
+## 3. Representative User Quotes by Platform
+
+### Apple App Store Feedback:
+*No negative App Store reviews analyzed in this batch.*
+
+### Google Play Store & Community Forums Feedback:
+- *"I don't like this app at all Says now liked song but need premium for second view"* (User: Rohit Walvekar - Date: 2026-07-01)
+- *"what's the point if they can't even let us play our choice of music, at this point why don't u money hungry animals ask for money to even download the app"* (User: Singh Amarjot - Date: 2026-07-01)
+- *"I miss the old Spotify... What about the latest version? simply waste... The developers will do anything to make you buy a subscription... literally anything... Scumbags..."* (User: Kiran Akash - Date: 2026-07-01)
+
+### Reddit & Twitter Discussions:
+- *"Does anyone else feel like Discover Weekly has gotten stale? It used to find hidden gems, but now it just recommends songs I already skipped or artists I already follow. It's like the algorithm got lazy and only suggests 'safe' choices."* (Platform: Reddit, User: u/reddit_listener_7507 - Date: 2026-06-17)
+- *"Does anyone else feel like Discover Weekly has gotten stale? It used to find hidden gems, but now it just recommends songs I already skipped or artists I already follow. It's like the algorithm got lazy and only suggests 'safe' choices."* (Platform: Reddit, User: u/reddit_listener_2466 - Date: 2026-06-02)
+- *"Does anyone else feel like Discover Weekly has gotten stale? It used to find hidden gems, but now it just recommends songs I already skipped or artists I already follow. It's like the algorithm got lazy and only suggests 'safe' choices."* (Platform: Reddit, User: u/reddit_listener_5761 - Date: 2026-06-25)

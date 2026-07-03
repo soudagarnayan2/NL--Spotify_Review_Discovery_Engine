@@ -1,0 +1,106 @@
+# Spotify AI-Powered Music Discovery System
+
+## Role & Context
+You are a **Product Manager on the Growth Team at Spotify**. 
+
+Spotify has successfully acquired hundreds of millions of active users and built one of the world's most sophisticated recommendation systems (using collaborative filtering, matrix factorization, and deep learning). However, data indicates a growing challenge: **a significant percentage of listening time still comes from repeat playlists, familiar artists, and previously discovered tracks.** Users frequently get trapped in "algorithmic bubbles" or "echo chambers" where the system continues recommending variations of the same content, leading to listening fatigue and long-term churn risk.
+
+Spotify's strategic goal is to **increase meaningful music discovery and reduce repetitive, passive listening behaviors.** 
+
+To streamline stakeholder reporting, research documentation, and automated user feedback loops, the system integrates with Google Workspace (Google Docs and Gmail). **Crucially, the system utilizes Model Context Protocol (MCP) servers (Google Docs MCP and Gmail MCP) for these integrations rather than direct REST APIs**, enabling a standardized, agent-friendly tool interface for reading, writing, and communication.
+
+This document defines the end-to-end framework for analyzing user friction, validating opportunities, and designing/building an AI-native MVP to solve this problem.
+
+---
+
+## Part 1: AI-Powered Review Discovery Engine
+Before proposing any solution, you must build an AI-powered system that analyzes user feedback at scale to understand why users get stuck in repetitive listening cycles.
+
+### 1. Data Sources & Target URLs
+The review discovery engine must ingest and process user feedback from multiple unstructured sources:
+- **Google Play Store**: Scrape feedback directly from [Spotify on Google Play Store](https://play.google.com/store/apps/details?id=com.spotify.music) to capture usability complaints and ratings.
+- **Product Hunt Reviews**: Analyze launch-day and community feedback from [Spotify Reviews on Product Hunt](https://www.producthunt.com/products/spotify/reviews).
+- **Apple App Store**: Collect mobile app reviews from [Spotify Reviews on Apple App Store](https://apps.apple.com/us/app/spotify-music-and-podcasts/id324684580?see-all=reviews&platform=iphone).
+- **Reddit & Forums**: Monitor community boards (e.g., `r/spotify`) using Reddit's API with user agent `SpotifyDiscoveryAgent/1.0` to analyze detailed user complaints and workarounds.
+
+### 2. Analytical Objectives & Core Insights
+The engine must process the unstructured text to answer key questions:
+- **Why do users struggle to discover new music?** (e.g., UI clutter, lack of trust in recommendations, difficulty articulating mood).
+- **What are the most common frustrations with current recommendation algorithms?** (e.g., "recommending songs I already skipped," "too repetitive," "only plays mainstream hits").
+- **What listening behaviors are users trying to achieve?** (e.g., active exploration, passive background listening, mood matching, nostalgic listening).
+- **What causes users to repeatedly listen to the same content?** (e.g., cognitive overload when choosing, fear of bad recommendations, convenience).
+- **Which user segments experience different discovery challenges?** (e.g., casual listeners vs. audiophiles/power users).
+- **What unmet needs emerge consistently across reviews?** (e.g., "temp/sandbox mode" for listening without ruining recommendations, query-based discovery, real-time mood adjustment).
+
+> [!NOTE]
+> **Source Evidence & Insights**: User reviews and forum posts consistently point to a recurring recommendation feedback loop and a critical trust gap. Industry analyses and research show that Spotify users have varied discovery goals but often need just a few “great” new tracks to feel satisfied, reinforcing that closing this trust gap is both a user experience win and a major business opportunity.
+
+### 3. Engine Architecture (AI-Native Stack)
+You can leverage tools like **LLMs (GPT-4o, Claude 3.5 Sonnet)**, **Vector Databases (ChromaDB, Pinecone)**, **Agentic Workflows (LangGraph, n8n, CrewAI)**, and **RAG (Retrieval-Augmented Generation)** to:
+- Scraping/Ingestion -> Cleaning -> Vector Embeddings -> Topic Modeling & Clustering -> Sentiment & Intent Classification.
+- **Workspace Reporting (MCP Integration)**: Instead of implementing direct REST APIs, the workflow uses the **Google Docs MCP server** to automatically generate, format, and structure the *Review Analysis & Discovery Insights Report* directly in Google Workspace. It uses the **Gmail MCP server** to automatically draft and send synthesis email updates to growth team stakeholders at `stakeholders@spotify.com`.
+- **Sandbox/Offline Fallback**: In development environments or when MCP servers are offline, all output reports must be saved locally under the `data/workspace/` directory to ensure system stability.
+
+---
+
+## Part 2: Validate the Opportunity Through User Research
+AI-generated insights are a starting point to identify patterns, but they must be validated through qualitative primary research.
+
+### 1. Target Segment Selection
+Based on initial feedback analysis, the target focus segment is **Routine Spotify Listeners**:
+- **Target Profile**: Routine Spotify listeners who love music and desire to discover new songs, but rely mainly on playlists and familiar content for daily listening (often using background playlists for work or commute).
+- **Core Friction**: They want fresh songs that fit their taste or mood, but default to repeat tracks due to decision paralysis and low trust in Spotify's discovery recommendations.
+
+### 2. Primary Research Execution
+- Conduct **5 to 6 structured user interviews** with respondents matching this target profile.
+- **Interview Focus**:
+  - Understand their current music discovery journey (methods, tools, external sources).
+  - Deep-dive into specific moments of friction (e.g., when they skip 10 songs in a row).
+  - Uncover the emotional triggers behind repetitive listening (comfort vs. boredom).
+  - Test early hypotheses regarding potential AI-driven interventions.
+- **Workspace Documentation (MCP Integration)**: The PM agent leverages the **Google Docs MCP server** to instantiate a structured interview template, compile raw user transcripts/notes in real-time, and format the user research report for team collaboration. If MCP is offline, notes are cached locally inside `data/workspace/`.
+
+---
+
+## Part 3: Define the Problem & Business Case
+Based on the synthesis of your AI-powered review analysis and primary user research, formally define the problem space.
+
+### 1. Problem Statement Framing
+- **Target User**: Routine Spotify listeners who love music and desire to discover new songs, but rely mainly on playlists and familiar content for daily listening (often using background playlists for work or commute).
+- **The Problem**: These users want meaningful, relevant music discovery – fresh songs that fit their taste or mood – but currently lack confidence in Spotify’s suggestions. Spotify’s algorithms optimize for safe listening (algorithmic exploitation of known preferences) rather than trust-building exploration. As a result, discovery feels risky or disappointing, and users fall back on their own playlists and repeat tracks. In short, Spotify has sophisticated personalization, but it fails to help these users evaluate and expand their tastes, so they rarely break out of their listening bubble.
+- **The Root Problem**: Routine Spotify users want fresh music that feels right for them, but Spotify’s recommendation engine currently reinforces only the familiar, making real discovery rare and eroding user trust. Solving this by adding transparency, context-awareness, and safe exploration controls will unlock greater user satisfaction and engagement.
+
+### 2. The Business Case (Growth Team Focus)
+Improving discovery trust makes clear business sense. When users confidently explore new music, they spend more time in the app, engage with a wider range of content (good for labels and artists), and feel more satisfied.
+Addressing this issue directly impacts Spotify's growth metrics:
+- **Retention & Churn Reduction**: Satisfying routine listeners' unmet discovery needs deepens loyalty and mitigates churn risks caused by repetition or boredom.
+- **Engagement Metrics**: Increases key metrics such as song saves and streams of novel tracks, session length, and active daily listening.
+- **Catalog & Artist Diversity**: Promotes a broader set of artists or tracks, unlocking new promotional revenue models and fostering healthier relationships with independent labels.
+- **Workspace Sync (MCP Integration)**: The finalized problem statement and business case are published to a master Google Doc in the shared Growth Team drive using the **Google Docs MCP server** to serve as the unified PRD (Product Requirement Document). Notification emails are sent via **Gmail MCP** to `stakeholders@spotify.com`.
+
+---
+
+## Part 4: Build an AI-Native MVP
+Design, build, and deploy a functional MVP that demonstrates how AI solves the discovery problem in ways traditional systems cannot.
+
+### 1. Traditional vs. AI-Native Recommendations
+Your MVP documentation and design must address the architectural shift:
+- **Limitations of Traditional Recommendations**: Collaborative filtering and content-based filtering rely heavily on historical behavior. This creates a feedback loop: you are recommended what you listen to -> you listen to it because it is recommended -> the system reinforces that you only like this type of music.
+- **The AI-Native Unlock**: Large Language Models (LLMs) and agentic architectures can process natural language, extract abstract concepts (e.g., "songs that feel like driving through a neon-lit city at 2 AM in the rain"), perform semantic searches over acoustic metadata, and dynamically adjust recommendations based on multi-turn conversations rather than just static play history.
+
+### 2. MVP Scope & Technical Requirements
+The MVP should take the form of an interactive web application or an agent deployed to production, featuring:
+- **Interactive Natural Language Discovery**: A chat or prompt interface where users can describe complex contexts, moods, or musical textures (e.g., *"I want indie folk songs with acoustic guitars that sound nostalgic but not depressing"*).
+- **Dynamic Context Parsing & Filtering**: An LLM agent (utilizing Llama 3 via Groq) that parses the user's intent and translates it into search queries, mood vectors, or genre filters.
+- **RAG over Spotify Metadata**: Access to track metadata, lyrics, and user-generated playlists in ChromaDB to retrieve candidates that match semantic queries.
+- **Spotify Integration**: Ability to preview tracks or save the generated discovery playlist directly to the user's Spotify account via the Spotify Web API using the redirect URI `http://localhost:8000/callback`.
+- **Feedback Loop**: A mechanism for users to refine the results in real-time (e.g., *"Make it faster,"* *"Remove the tracks with vocals"*).
+- **Workspace Feedback Agent (MCP Integration)**: An embedded feedback agent that uses the **Gmail MCP server** to automatically email personalized follow-up questionnaires to beta users who tested the recommendation engine, and uses the **Google Docs MCP server** to append their structured feedback directly to an aggregated product feedback doc. All communications default to `stakeholders@spotify.com`.
+
+---
+
+## Part 5: Evaluation & Success Metrics
+Define how the success of the AI-powered music discovery system will be measured:
+- **Precision of Semantic Search**: Accuracy of matching user queries to appropriate track characteristics.
+- **Catalog Coverage**: Increase in the number of unique artists/tracks surfaced compared to standard recommendations.
+- **User Adoption & Retention**: Click-through rates on discovery playlists, repeat usage of the AI assistant, and reduction in track-skip rates.

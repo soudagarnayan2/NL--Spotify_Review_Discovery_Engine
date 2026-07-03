@@ -1,0 +1,394 @@
+{
+  "genres": [
+    {
+      "id": "pop",
+      "name": "Pop",
+      "description": "Catchy hooks, infectious beats, and global chart-toppers.",
+      "icon": "🎵",
+      "subgenres": ["Dance Pop", "Synthpop", "Indie Pop", "Teen Pop"]
+    },
+    {
+      "id": "rock",
+      "name": "Rock",
+      "description": "Guitars, drums, and high-energy anthems from classic to modern.",
+      "icon": "🎸",
+      "subgenres": ["Classic Rock", "Alternative Rock", "Hard Rock", "Indie Rock"]
+    },
+    {
+      "id": "hiphop",
+      "name": "Hip-Hop/Rap",
+      "description": "Rhythmic beats, poetic flow, and powerful street stories.",
+      "icon": "🎤",
+      "subgenres": ["Trap", "Boom Bap", "Conscious Rap", "Melodic Rap"]
+    },
+    {
+      "id": "rnb",
+      "name": "R&B",
+      "description": "Smooth rhythms, soulful vocals, and emotional melodies.",
+      "icon": "🎷",
+      "subgenres": ["Contemporary R&B", "Neo-Soul", "Quiet Storm"]
+    },
+    {
+      "id": "jazz",
+      "name": "Jazz",
+      "description": "Improvisational rhythms, warm saxophones, and cool swing.",
+      "icon": "🎺",
+      "subgenres": ["Swing", "Bebop", "Cool Jazz", "Jazz Fusion"]
+    },
+    {
+      "id": "blues",
+      "name": "Blues",
+      "description": "Soul-stirring guitar riffs and heartfelt expressions of life.",
+      "icon": "🎻",
+      "subgenres": ["Delta Blues", "Chicago Blues", "Electric Blues"]
+    },
+    {
+      "id": "classical",
+      "name": "Classical",
+      "description": "Timeless orchestral masterpieces, sonatas, and symphonies.",
+      "icon": "🎼",
+      "subgenres": ["Baroque", "Romantic", "Modern Classical", "Chamber Music"]
+    },
+    {
+      "id": "country",
+      "name": "Country",
+      "description": "Storytelling lyrics, acoustic guitars, and heartfelt folk roots.",
+      "icon": "🤠",
+      "subgenres": ["Traditional Country", "Outlaw Country", "Country Pop"]
+    },
+    {
+      "id": "folk",
+      "name": "Folk",
+      "description": "Acoustic storytelling, traditional instruments, and raw emotion.",
+      "icon": "🪕",
+      "subgenres": ["Indie Folk", "Americana", "Traditional Folk"]
+    },
+    {
+      "id": "electronic",
+      "name": "Electronic",
+      "description": "EDM, house, techno, and ambient soundscapes.",
+      "icon": "⚡",
+      "subgenres": ["EDM", "House", "Techno", "Trance", "Dubstep", "Drum & Bass", "Ambient", "Lo-Fi", "Synthwave"]
+    },
+    {
+      "id": "metal",
+      "name": "Metal",
+      "description": "Aggressive guitars, rapid drums, and intense vocal delivery.",
+      "icon": "🤘",
+      "subgenres": ["Heavy Metal", "Thrash Metal", "Progressive Metal", "Doom Metal"]
+    },
+    {
+      "id": "punk",
+      "name": "Punk",
+      "description": "Fast-paced, rebellious energy and raw garage rock sound.",
+      "icon": "⚡",
+      "subgenres": ["Classic Punk", "Pop Punk", "Post-Punk"]
+    },
+    {
+      "id": "alternative",
+      "name": "Alternative",
+      "description": "Non-mainstream rock and pop with experimental textures.",
+      "icon": "🌀",
+      "subgenres": ["Grunge", "Shoegaze", "Alt-Pop"]
+    },
+    {
+      "id": "indie",
+      "name": "Indie",
+      "description": "Independent spirit, DIY sounds, and unique melodies.",
+      "icon": "🎨",
+      "subgenres": ["Indie Rock", "Indie Pop", "Dream Pop"]
+    },
+    {
+      "id": "reggae",
+      "name": "Reggae",
+      "description": "Laid-back offbeat rhythms, heavy basslines, and island vibes.",
+      "icon": "🌴",
+      "subgenres": ["Roots Reggae", "Dancehall", "Dub"]
+    },
+    {
+      "id": "soul",
+      "name": "Soul",
+      "description": "Expressive vocals, brass arrangements, and deep feeling.",
+      "icon": "❤️",
+      "subgenres": ["Motown Soul", "Southern Soul", "Psych-Soul"]
+    },
+    {
+      "id": "funk",
+      "name": "Funk",
+      "description": "Groovy slap bass, syncopated rhythms, and danceable horn sections.",
+      "icon": "🕺",
+      "subgenres": ["P-Funk", "Synth Funk", "Funk Rock"]
+    },
+    {
+      "id": "disco",
+      "name": "Disco",
+      "description": "Four-on-the-floor beats, shimmering synths, and retro dancefloor energy.",
+      "icon": "🪩",
+      "subgenres": ["Classic Disco", "Italo Disco", "Nu-Disco"]
+    },
+    {
+      "id": "gospel",
+      "name": "Gospel",
+      "description": "Powerful choir arrangements, uplifting lyrics, and spiritual energy.",
+      "icon": "🙏",
+      "subgenres": ["Traditional Gospel", "Urban Contemporary"]
+    },
+    {
+      "id": "afrobeat",
+      "name": "Afrobeat",
+      "description": "Infectious West African percussion, highlife guitars, and modern urban flows.",
+      "icon": "🌍",
+      "subgenres": ["Afropop", "Afro-Fusion", "Classic Afrobeat"]
+    },
+    {
+      "id": "latin",
+      "name": "Latin",
+      "description": "Passionate rhythms, syncopated beats, and vibrant melodies.",
+      "icon": "💃",
+      "subgenres": ["Salsa", "Reggaeton", "Bachata", "Merengue", "Latin Pop"]
+    },
+    {
+      "id": "kpop",
+      "name": "K-Pop",
+      "description": "Korean pop music with intricate production and high-energy choreo.",
+      "icon": "✨",
+      "subgenres": ["K-Pop Dance", "K-R&B", "K-HipHop"]
+    },
+    {
+      "id": "jpop",
+      "name": "J-Pop",
+      "description": "Japanese pop, anime soundtracks, and catchy electronic hooks.",
+      "icon": "🌸",
+      "subgenres": ["J-Rock", "City Pop", "J-Pop Idol"]
+    },
+    {
+      "id": "cpop",
+      "name": "C-Pop",
+      "description": "Chinese pop music, sweeping ballads, and modern Mandopop.",
+      "icon": "🏮",
+      "subgenres": ["Mandopop", "Cantopop", "C-Rock"]
+    },
+    {
+      "id": "world",
+      "name": "World Music",
+      "description": "Traditional and global ethnic music from diverse cultures.",
+      "icon": "🌎",
+      "subgenres": ["Celtic", "Flamenco", "African Folk", "Arabic Folk"]
+    },
+    {
+      "id": "instrumental",
+      "name": "Instrumental",
+      "description": "Music without lyrics, focusing on instrumentation and vibe.",
+      "icon": "🎹",
+      "subgenres": ["Ambient Instrumental", "Acoustic Guitar", "Piano Solo"]
+    },
+    {
+      "id": "acoustic",
+      "name": "Acoustic",
+      "description": "Stripped-back performances featuring acoustic instruments and clean vocals.",
+      "icon": "🍂",
+      "subgenres": ["Unplugged", "Acoustic Ballad"]
+    },
+    {
+      "id": "opera",
+      "name": "Opera",
+      "description": "Dramatic classical singing with sweeping theatrical orchestras.",
+      "icon": "🎭",
+      "subgenres": ["Classic Opera", "Aria", "Operatic Pop"]
+    },
+    {
+      "id": "soundtracks",
+      "name": "Soundtracks",
+      "description": "Cinematic scores and iconic theme songs from films and games.",
+      "icon": "🎬",
+      "subgenres": ["Orchestral Score", "Movie Theme", "Video Game OST"]
+    },
+    {
+      "id": "children",
+      "name": "Children's Music",
+      "description": "Fun, educational, and catchy songs for kids and families.",
+      "icon": "🧸",
+      "subgenres": ["Lullaby", "Sing-Along", "Nursery Rhymes"]
+    },
+    {
+      "id": "bollywood",
+      "name": "Bollywood",
+      "description": "Grand soundtracks, dramatic love stories, and high-energy dance sequences.",
+      "icon": "🇮🇳",
+      "subgenres": ["Romantic", "Dance", "Sufi", "Bollywood 90s", "Item Song"]
+    },
+    {
+      "id": "hindustani",
+      "name": "Hindustani Classical",
+      "description": "North Indian classical ragas, traditional instruments like sitar and sarod.",
+      "icon": "🕉️",
+      "subgenres": ["Dhrupad", "Khayal", "Tarana"]
+    },
+    {
+      "id": "carnatic",
+      "name": "Carnatic Classical",
+      "description": "South Indian classical music, vocal-centric ragas, and mridangam beats.",
+      "icon": "🛕",
+      "subgenres": ["Kriti", "Varnam", "Ragamu-Tanamu-Pallavi"]
+    },
+    {
+      "id": "ghazal",
+      "name": "Ghazal",
+      "description": "Poetic, melancholic love lyrics and soothing acoustic instruments.",
+      "icon": "📖",
+      "subgenres": ["Classic Ghazal", "Modern Ghazal"]
+    },
+    {
+      "id": "qawwali",
+      "name": "Qawwali",
+      "description": "Uplifting devotional singing, clapping, and driving harmonium rhythms.",
+      "icon": "🙌",
+      "subgenres": ["Traditional Qawwali", "Sufi Qawwali"]
+    },
+    {
+      "id": "sufi",
+      "name": "Sufi",
+      "description": "Mystical, spiritual music expressing love and devotion.",
+      "icon": "🌀",
+      "subgenres": ["Sufi Rock", "Sufi Pop", "Devotional Sufi"]
+    },
+    {
+      "id": "bhajan",
+      "name": "Bhajan",
+      "description": "Soulful Hindu devotional chants and prayer songs.",
+      "icon": "🕉️",
+      "subgenres": ["Kirtan", "Aarti", "Chant"]
+    },
+    {
+      "id": "devotional",
+      "name": "Devotional",
+      "description": "Spiritual, calm, and prayerful music across all traditions.",
+      "icon": "🛐",
+      "subgenres": ["Chants", "Hymns", "Prayer"]
+    },
+    {
+      "id": "punjabi",
+      "name": "Punjabi",
+      "description": "High-octane dhol beats, Bhangra dance, and modern Punjabi Hip-Hop.",
+      "icon": "🌾",
+      "subgenres": ["Bhangra", "Punjabi Pop", "Desi Hip-Hop"]
+    },
+    {
+      "id": "marathi",
+      "name": "Marathi",
+      "description": "Traditional Lavani, Abhangas, and modern Marathi film music.",
+      "icon": "🚩",
+      "subgenres": ["Lavani", "Natya Sangeet", "Abhang", "Marathi Pop"]
+    },
+    {
+      "id": "gujarati",
+      "name": "Gujarati",
+      "description": "Festive Garba rhythms, folk ballads, and modern Gujarati pop.",
+      "icon": "🪁",
+      "subgenres": ["Garba", "Dandiya", "Gujarati Folk"]
+    },
+    {
+      "id": "bengali",
+      "name": "Bengali",
+      "description": "Rabindra Sangeet, Baul folk tunes, and soulful Bengali indie rock.",
+      "icon": "🎨",
+      "subgenres": ["Rabindra Sangeet", "Baul Folk", "Bengali Rock", "Adhunik Sangeet"]
+    },
+    {
+      "id": "tamil",
+      "name": "Tamil",
+      "description": "Vibrant Kuthu beats, cinematic romantic hits, and independent Tamil indie.",
+      "icon": "👑",
+      "subgenres": ["Kuthu", "Tamil Romantic", "Tamil Indie"]
+    },
+    {
+      "id": "telugu",
+      "name": "Telugu",
+      "description": "High-energy Tollywood dance tracks, melodic ballads, and folk fusion.",
+      "icon": "🏹",
+      "subgenres": ["Tollywood Dance", "Telugu Romantic", "Telugu Folk"]
+    },
+    {
+      "id": "malayalam",
+      "name": "Malayalam",
+      "description": "Soulful acoustic melodies, lush rain-themed ballads, and indie rock.",
+      "icon": "🌴",
+      "subgenres": ["Malayalam Romantic", "Malayalam Folk", "Malayalam Indie"]
+    },
+    {
+      "id": "kannada",
+      "name": "Kannada",
+      "description": "Traditional folk-infused beats, Tollywood pop, and romantic tracks.",
+      "icon": "🕉️",
+      "subgenres": ["Kannada Folk", "Kannada Romantic", "Kannada Pop"]
+    },
+    {
+      "id": "assamese",
+      "name": "Assamese",
+      "description": "Vibrant Bihu dance songs, soft folk pop, and river-themed melodies.",
+      "icon": "🌾",
+      "subgenres": ["Bihu", "Assamese Folk", "Assamese Pop"]
+    },
+    {
+      "id": "odia",
+      "name": "Odia",
+      "description": "Sambalpuri folk beats, Jagannath bhajans, and Odia romantic pop.",
+      "icon": "🛕",
+      "subgenres": ["Sambalpuri", "Odia Folk", "Odia Bhajan"]
+    },
+    {
+      "id": "bhojpuri",
+      "name": "Bhojpuri",
+      "description": "Rowdy dance-pop, high-energy party numbers, and traditional folk.",
+      "icon": "🌶️",
+      "subgenres": ["Bhojpuri Dance", "Bhojpuri Folk", "Chhath Geet"]
+    },
+    {
+      "id": "haryanvi",
+      "name": "Haryanvi",
+      "description": "Heavy-bass Haryanvi rap, upbeat dance songs, and local folklore.",
+      "icon": "🌾",
+      "subgenres": ["Haryanvi Pop", "Haryanvi Rap", "Haryanvi Folk"]
+    },
+    {
+      "id": "rajasthani",
+      "name": "Rajasthani",
+      "description": "Traditional folk songs, dholak-driven welcome songs, and desert ballads.",
+      "icon": "🐫",
+      "subgenres": ["Rajasthani Folk", "Maand", "Ghoomar"]
+    },
+    {
+      "id": "konkani",
+      "name": "Konkani",
+      "description": "Coastal Goan mandos, beachside pop, and acoustic melodies.",
+      "icon": "🏖️",
+      "subgenres": ["Goan Mando", "Konkani Pop", "Coastal Folk"]
+    },
+    {
+      "id": "kashmiri",
+      "name": "Kashmiri",
+      "description": "Sufiyana Kalam, traditional Rouf dance rhythms, and mountain folk.",
+      "icon": "🏔️",
+      "subgenres": ["Sufiyana Kalam", "Rouf", "Kashmiri Folk"]
+    },
+    {
+      "id": "dogri",
+      "name": "Dogri",
+      "description": "Traditional Dogra folk songs, sweet hill ballads, and cultural music.",
+      "icon": "🏔️",
+      "subgenres": ["Dogri Folk", "Dogri Pahadi"]
+    }
+  ],
+  "moods": [
+    "Happy", "Sad", "Romantic", "Chill", "Relaxing", "Workout", "Party", "Focus", "Study", "Sleep", "Meditation", "Travel", "Morning", "Evening", "Rainy Day", "Energetic", "Motivational", "Calm"
+  ],
+  "activities": [
+    "Running", "Gym", "Yoga", "Driving", "Cooking", "Reading", "Coding", "Gaming", "Office", "Studying", "Cleaning", "Family Time"
+  ],
+  "languages": [
+    "English", "Hindi", "Marathi", "Punjabi", "Tamil", "Telugu", "Bengali", "Malayalam", "Kannada", "Gujarati", "Bhojpuri", "Assamese", "Odia", "Haryanvi", "Rajasthani", "Konkani", "Kashmiri", "Dogri", "Spanish", "Korean", "Japanese", "Chinese"
+  ],
+  "decades": [
+    "1970s", "1980s", "1990s", "2000s", "2010s", "2020s"
+  ]
+}

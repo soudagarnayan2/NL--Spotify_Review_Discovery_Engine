@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "spotify-review-discovery": {
+      "command": "python",
+      "args": ["src/backend/mcp_server.py"],
+      "cwd": "d:/NAYAN-Nextleap/NL-Grad-project",
+      "env": {
+        "GROQ_API_KEY": "",
+        "REDDIT_CLIENT_ID": "",
+        "REDDIT_CLIENT_SECRET": "",
+        "REDDIT_USER_AGENT": "SpotifyDiscoveryAgent/1.0"
+      }
+    }
+  }
+}
