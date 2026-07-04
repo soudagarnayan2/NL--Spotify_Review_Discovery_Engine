@@ -1,23 +1,23 @@
 {
-  "test_date": "2026-07-03T17:43:05.204493",
+  "test_date": "2026-07-04T11:13:55.653985",
   "baseline": {
     "total": 20,
     "unique_artists": 20,
     "unique_genres": 4,
-    "diversity_index": 0.1724
+    "diversity_index": 0.1754
   },
   "ai_discovery": {
-    "total_recommendations": 116,
-    "unique_artists": 76,
-    "unique_genres": 25,
-    "unique_subgenres": 59,
-    "unique_tracks": 86,
-    "artist_diversity": 0.6552,
-    "genre_diversity": 0.2155
+    "total_recommendations": 114,
+    "unique_artists": 78,
+    "unique_genres": 26,
+    "unique_subgenres": 62,
+    "unique_tracks": 87,
+    "artist_diversity": 0.6842,
+    "genre_diversity": 0.2281
   },
   "improvement": {
-    "artist_diversity_pct": 280.02,
-    "genre_diversity_pct": 524.95
+    "artist_diversity_pct": 289.99,
+    "genre_diversity_pct": 550.09
   },
   "target_pct": 30,
   "overall_pass": true

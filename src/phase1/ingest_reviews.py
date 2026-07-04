@@ -192,8 +192,8 @@ def generate_mock_reviews(platform, count=20):
 
 def main():
     parser = argparse.ArgumentParser(description="Ingest Spotify reviews from app stores and mock social media sources.")
-    parser.add_argument("--limit-scraped", type=int, default=250, help="Number of reviews to scrape per app store (default: 250)")
-    parser.add_argument("--limit-mocked", type=int, default=250, help="Number of mock reviews to generate per social platform (default: 250)")
+    parser.add_argument("--limit-scraped", type=int, default=500, help="Number of reviews to scrape per app store (default: 500)")
+    parser.add_argument("--limit-mocked", type=int, default=500, help="Number of mock reviews to generate per social platform (default: 500)")
     parser.add_argument("--output", type=str, default="data/raw_reviews.json", help="Path to save the output JSON file (default: data/raw_reviews.json)")
     
     args = parser.parse_args()

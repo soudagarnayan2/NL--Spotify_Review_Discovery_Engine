@@ -185,7 +185,7 @@ function classifyQueryIntent(query) {
   if (isSongRequest) return 'song';
 
   // 3. Review / VoC keyword phrases → review
-  if (/review|sentiment|frustrat|algorithm|shuffle|retention|premium|subscription|satisfaction|improvement|\bux\b|pain point|cancel|churn|rating|feedback|user feedback|customer say|update.*sentiment|sentiment.*shift/i.test(q)) {
+  if (/review|sentiment|feedback|rating|user|customer|complain|opinion|switch|competitor|apple music|youtube music|amazon music|deezer|tidal|cancel|premium|subscription|satisfied|satisfaction|hate|frustrat|annoy|pain point|improvement|requested|request|missing|priorit|buffering|offline|download|playback|navigate|stuck|update|new release|bug|crash|freeze|slow|error|confus|trend|uninstall|churn/i.test(q)) {
     return 'review';
   }
 
@@ -813,34 +813,152 @@ Sentiment analysis of Spotify user reviews shows a measurable **negative shift**
     };
   }
 
+  if (query_lower.includes("playback") || query_lower.includes("buffer") || query_lower.includes("offline") || query_lower.includes("download") || query_lower.includes("audio") || query_lower.includes("sound")) {
+    return {
+      answer: `### Executive Summary
+Playback and technical stability are generally high, but offline downloads represent a major pain point, with users reporting disappeared tracks and authentication errors. Buffering issues are occasionally reported on high-quality settings under cellular networks.
+
+### Key Findings
+
+#### Theme: Offline Download Sync Issues
+* **Summary**: Users report that offline downloaded tracks frequently disappear or refuse to play without cellular verification.
+* **Overall Sentiment**: Negative
+* **Frequency**: High (55 mentions)
+* **Representative Review Excerpts**:
+  - "Offline mode is completely broken. It keeps deleting my downloaded songs when I'm on a plane."
+  - "Why do my downloaded podcasts ask for internet connection to play? Defeats the purpose."
+
+#### Theme: High-Fidelity Streaming Buffering
+* **Summary**: Higher bitrate streaming results in occasional pauses and buffer loops on cellular data.
+* **Overall Sentiment**: Negative
+* **Frequency**: Medium (30 mentions)
+* **Representative Review Excerpts**:
+  - "Buffering is terrible on cellular networks even with good signal. High-quality audio constantly stutters."
+
+### User Needs & Goals
+* Reliable offline audio playback for travel and low-connectivity commutes.
+* Stable streaming that dynamically adjusts bitrate without hard pausing.
+
+### Pain Points
+* Involuntary decryption key expiration deleting offline local storage cache.
+* Strict licensing checks requiring online ping before playing downloaded media.
+
+### Actionable Recommendations
+1. **Extend offline authentication lease duration** to 30 days before forcing validation.
+2. **Implement intelligent background cache repair** to restore missing files during Wi-Fi connections.
+3. **Enhance adaptive bitrate engine** to avoid stream stutter on cellular data.
+
+### Confidence
+* **High**: Based on 85 playback-related reviews with consistent issues across App Store and Google Play.`,
+      evidence: [
+        { content: "Offline mode is completely broken. It keeps deleting my downloaded songs when I'm on a plane.", platform: 'app_store', date: '2026-07-01' },
+        { content: "Why do my downloaded podcasts ask for internet connection to play? Defeats the purpose.", platform: 'play_store', date: '2026-06-29' },
+        { content: "Buffering is terrible on cellular networks even with good signal. High-quality audio constantly stutters.", platform: 'reddit', date: '2026-06-26' }
+      ]
+    };
+  }
+
+  if (query_lower.includes("competitor") || query_lower.includes("competing") || query_lower.includes("switch") || query_lower.includes("apple music") || query_lower.includes("youtube music") || query_lower.includes("amazon music")) {
+    return {
+      answer: `### Executive Summary
+Competitor comparisons focus on Apple Music's superior lossless audio quality and YouTube Music's larger catalog of unofficial remixes and live tracks. However, Spotify is preferred for its social sharing features and device connection versatility.
+
+### Key Findings
+
+#### Theme: Apple Music Audio Quality
+* **Summary**: Audiophile users report switching or considering switching to Apple Music for native spatial audio and lossless streaming.
+* **Overall Sentiment**: Neutral (Competitive Comparison)
+* **Frequency**: High (65 mentions)
+* **Representative Review Excerpts**:
+  - "Apple Music includes lossless audio for free. Spotify's sound quality feels muddy in comparison."
+
+#### Theme: YouTube Music Remix Catalog
+* **Summary**: Users switch to YouTube Music for unofficial covers, mixtape tracks, and video integration.
+* **Overall Sentiment**: Neutral
+* **Frequency**: Medium (40 mentions)
+* **Representative Review Excerpts**:
+  - "Switched to YouTube Music because I can find covers and bootlegs that Spotify never has."
+
+### User Needs & Goals
+* High-fidelity audio quality (Hi-Fi) without additional subscription cost.
+* Access to rare, unofficial, or user-uploaded music catalog items.
+
+### Actionable Recommendations
+1. **Accelerate Spotify Hi-Fi rollout** to match Apple and Amazon Music's standard offering.
+2. **Improve local files library indexing** to let users easily sync unofficial tracks.
+
+### Confidence
+* **High**: 105 reviews mentioning competitor brands with specific comparative feature feedback.`,
+      evidence: [
+        { content: "Apple Music includes lossless audio for free. Spotify's sound quality feels muddy in comparison.", platform: 'reddit', date: '2026-07-02' },
+        { content: "Switched to YouTube Music because I can find covers and bootlegs that Spotify never has.", platform: 'app_store', date: '2026-06-28' },
+        { content: "Spotify still wins on social sharing and device integration, but competitor audio quality is tempting.", platform: 'twitter', date: '2026-06-25' }
+      ]
+    };
+  }
+
+  if (query_lower.includes("bug") || query_lower.includes("crash") || query_lower.includes("freeze") || query_lower.includes("error") || query_lower.includes("slow")) {
+    return {
+      answer: `### Executive Summary
+Technical stability issues are infrequent overall, but recent reviews identify two specific regressions: background crashes when using CarPlay on iOS 17, and app freezing during network switches (Wi-Fi to Cellular).
+
+### Key Findings
+
+#### Theme: CarPlay Background Crash
+* **Summary**: Using navigation apps while streaming background audio causes Spotify to crash on iOS.
+* **Overall Sentiment**: Negative
+* **Frequency**: Medium (25 mentions)
+* **Representative Review Excerpts**:
+  - "The app constantly crashes in the background when I run Google Maps on CarPlay. Very annoying while driving."
+
+#### Theme: Network Handoff Freeze
+* **Summary**: Switching between Wi-Fi and cellular networks causes the UI to freeze or become unresponsive.
+* **Overall Sentiment**: Negative
+* **Frequency**: Medium (20 mentions)
+* **Representative Review Excerpts**:
+  - "Whenever I walk out of my house and switch to LTE, the Spotify screen freezes and I have to force restart."
+
+### Actionable Recommendations
+1. **Fix audio buffer handling in CarPlay background state** to prevent execution timeouts.
+2. **Enhance network state transition listeners** to gracefully handle cell tower handoffs without freezing the main thread.
+
+### Confidence
+* **High**: 45 stable bug reports detailing identical technical triggers.`,
+      evidence: [
+        { content: "The app constantly crashes in the background when I run Google Maps on CarPlay. Very annoying while driving.", platform: 'app_store', date: '2026-07-01' },
+        { content: "Whenever I walk out of my house and switch to LTE, the Spotify screen freezes and I have to force restart.", platform: 'play_store', date: '2026-06-29' }
+      ]
+    };
+  }
+
   // Fallback classification using shared helper
   const intent = classifyQueryIntent(query_lower);
   const isReviewQuery = intent === 'review';
 
   const analysis = isReviewQuery
     ? `### Executive Summary
-Across 76 analyzed reviews, three systemic issues dominate user complaints about Spotify's recommendation engine: algorithmic repetition, Smart Shuffle loops, and taste pollution from shared listening.
+Across 2000 analyzed reviews, three systemic issues dominate user complaints about Spotify's recommendation engine: algorithmic repetition, Smart Shuffle loops, and taste pollution from shared listening.
 
 ### Key Findings
 
 #### Theme: Algorithmic Repetitiveness
 * **Summary**: Discover Weekly and Daily Mixes repeatedly surface tracks the user has already heard or skipped.
 * **Overall Sentiment**: Negative
-* **Frequency**: High (23 mentions)
+* **Frequency**: High (546 mentions)
 * **Representative Review Excerpts**:
   - "I'm so tired of Spotify playing the same 15 songs on repeat. My Daily Mix is just songs from my own liked playlist."
 
 #### Theme: Smart Shuffle Loops
 * **Summary**: Smart Shuffle cycles through only ~15–20 tracks, creating a closed loop instead of expanding selection.
 * **Overall Sentiment**: Negative
-* **Frequency**: Low (4 mentions)
+* **Frequency**: Low (133 mentions)
 * **Representative Review Excerpts**:
   - "Smart Shuffle loops the same 10–15 tracks. It's not smart, it's just lazy."
 
 #### Theme: Taste Pollution
 * **Summary**: No sandbox or private mode means experimental listening permanently skews recommendations.
 * **Overall Sentiment**: Negative
-* **Frequency**: Low (6 mentions)
+* **Frequency**: Low (108 mentions)
 * **Representative Review Excerpts**:
   - "My kids' music completely ruined my recommendations. I need separate profiles."
 
@@ -856,12 +974,12 @@ Across 76 analyzed reviews, three systemic issues dominate user complaints about
 * Users consistently praise Spotify's recommendation features when they work correctly.
 
 ### Actionable Recommendations
-1. **Respect skip history** — de-prioritize skipped tracks for at least 30 days.
-2. **Introduce a Sandbox Mode** — isolate exploratory sessions from the core taste model.
-3. **Implement family/child profile separation** to prevent taste cross-contamination.
+*1. **Respect skip history** — de-prioritize skipped tracks for at least 30 days.
+*2. **Introduce a Sandbox Mode** — isolate exploratory sessions from the core taste model.
+*3. **Implement family/child profile separation** to prevent taste cross-contamination.
 
 ### Confidence
-* **Medium**: Based on 76 review mentions; patterns are consistent but sample size is moderate.`
+* **High**: Based on 2000 review mentions; patterns are consistent and represent a substantial dataset.`
     : `**Music Discovery Result for: "${query}"**\n\nBased on semantic analysis of the track catalog, I found matching tracks that fit your description.`;
 
   let tracks = [];
@@ -1090,27 +1208,75 @@ function escHtml(s) { return (s || '').replace(/'/g, "\\'"); }
 
 async function applyRefinement() {
   const query = document.getElementById('queryInput').value.trim();
-  if (!query) { showToast('Enter a query to refine.'); return; }
-  showToast('Refinement applied to current results.');
+  if (!query) { showToast('Please enter a refinement instruction.'); return; }
+
+  const btn = document.getElementById('refineBtn');
+  btn.disabled = true;
+  const originalText = btn.innerHTML;
+  btn.innerHTML = 'Refining...';
+
+  const resultsPanel = document.getElementById('resultsPanel');
+  resultsPanel.style.display = 'block';
+  resultsPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // Shimmer effect
+  document.getElementById('analysisContent').innerHTML = `
+    <div class="skeleton" style="height: 16px; width: 95%; margin-bottom: 12px;"></div>
+    <div class="skeleton" style="height: 16px; width: 80%; margin-bottom: 12px;"></div>
+    <div class="skeleton" style="height: 16px; width: 65%;"></div>
+  `;
+
+  const startTime = Date.now();
+  try {
+    const resp = await fetch(`${API_BASE}/discover/refine`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session_id: 'frontend_session',
+        refinement: query,
+        previous_intent: {}
+      })
+    });
+
+    if (!resp.ok) throw new Error(`API error: ${resp.status}`);
+    const data = await resp.json();
+
+    const elapsed = Date.now() - startTime;
+    if (elapsed < 800) {
+      await new Promise(resolve => setTimeout(resolve, 800 - elapsed));
+    }
+
+    renderResults(query, data);
+  } catch (err) {
+    console.warn('Backend not reachable for refinement, using mock:', err.message);
+    const elapsed = Date.now() - startTime;
+    if (elapsed < 800) {
+      await new Promise(resolve => setTimeout(resolve, 800 - elapsed));
+    }
+    renderResults(query, getMockDiscoverResponse(query));
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+  }
 }
 
 /* ══════════════════════════════════════════════════════════
    DASHBOARD
 ══════════════════════════════════════════════════════════ */
 function getMockInsights(vary = false, allNegatives = false) {
-  const offset = vary ? (Math.random() > 0.5 ? 1 : -1) * Math.floor(Math.random() * 4) : 0;
+  const offset = vary ? (Math.random() > 0.5 ? 1 : -1) * Math.floor(Math.random() * 20) : 0;
   
-  const negative = Math.max(30, 42 + offset);
-  const neutral = Math.max(15, 26 - offset);
-  const positive = Math.max(5, 8 + Math.floor(offset / 2));
+  const negative = Math.max(600, 1010 + offset);
+  const neutral = Math.max(400, 739 - offset);
+  const positive = Math.max(100, 251 + Math.floor(offset / 2));
   const total = negative + neutral + positive;
 
   const topics = {
-    "Algorithmic Bubble / Recommendation Repetition": Math.max(10, 23 + offset),
-    "General Feedback / Other": Math.max(15, 36 - offset),
-    "Decision overload": Math.max(3, 7 + Math.floor(offset / 3)),
-    "Taste pollution / Lack of Sandbox mode": Math.max(2, 6 - Math.floor(offset / 2)),
-    "Smart Shuffle loop issues": Math.max(1, 4 + Math.floor(offset / 4))
+    "Algorithmic Bubble / Recommendation Repetition": Math.max(200, 546 + offset),
+    "General Feedback / Other": Math.max(300, 979 - offset),
+    "Decision overload": Math.max(80, 234 + Math.floor(offset / 3)),
+    "Taste pollution / Lack of Sandbox mode": Math.max(40, 108 - Math.floor(offset / 2)),
+    "Smart Shuffle loop issues": Math.max(40, 133 + Math.floor(offset / 4))
   };
 
   const mockQuotes = [
@@ -1470,6 +1636,13 @@ document.getElementById('globalSearch').addEventListener('keydown', e => {
       runSearch();
       e.target.value = '';
     }
+  }
+});
+
+document.getElementById('queryInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    runSearch();
   }
 });
 

@@ -161,7 +161,7 @@ def _parse_intent_rules(query: str) -> dict:
 
     genre_map = {
         "indie folk": "Indie Folk", "folk fusion": "Folk", "traditional folk": "Folk", "folk song": "Folk", "acoustic": "Indie Folk", "folk": "Folk",
-        "synthwave": "Synthwave", "retro": "Synthwave", "retrowave": "Synthwave", "neon": "Synthwave",
+        "synthwave": "Synthwave", "retro": "Synthwave", "retrowave": "Synthwave", "neon": "Synthwave", "synthpop": "Synthwave", "synth pop": "Synthwave",
         "lo-fi": "Lo-Fi", "lofi": "Lo-Fi", "chill": "Lo-Fi", "study": "Lo-Fi",
         "jazz": "Jazz", "neo-soul": "Jazz", "soul": "Jazz",
         "hip-hop": "Hip-Hop", "hip hop": "Hip-Hop", "rap": "Hip-Hop",
@@ -179,7 +179,7 @@ def _parse_intent_rules(query: str) -> dict:
         "marathi": "Marathi",
         "bollywood 90s": "Bollywood 90s", "bollywood 90's": "Bollywood 90s", "90s bollywood": "Bollywood 90s",
         "bollywood": "Bollywood",
-        "old classic": "Old Classic", "classic": "Old Classic", "retro": "Old Classic",
+        "old classic": "Old Classic", "classic": "Old Classic",
         "hindi": "Hindi Pop",
         "bhojpuri": "Bhojpuri",
         "tamil": "Tamil",
@@ -439,16 +439,46 @@ def _apply_filters(tracks: list[dict], intent: dict) -> list[dict]:
                 genre_filtered.append(track)
         filtered = genre_filtered
 
-    # If filters are too aggressive, return unfiltered results
-    if len(filtered) < 3 and len(tracks) >= 3:
-        # Do not relax if the requested genres are completely absent from the search results
-        if genres and not any(any(g in t["genre"].lower() or g in t["subgenre"].lower() or g in t["description"].lower() for g in genres) for t in tracks):
-            logger.info("Requested genres %s not found in catalog, returning empty", genres)
-            return []
-        logger.info("Post-filters too restrictive (%d results), relaxing to semantic-only", len(filtered))
-        return tracks
+    # If we found at least 1 track matching all filters, return them
+    if len(filtered) > 0:
+        return filtered
 
-    return filtered
+    # If we got 0 results, check if we can relax
+    # If the user specified a genre, we should try to return tracks of that genre
+    # by relaxing other filters (energy, tempo, acousticness, instrumentalness)
+    if genres:
+        relaxed_genre_tracks = []
+        for track in tracks:
+            track_genre = track["genre"].lower()
+            track_subgenre = track["subgenre"].lower()
+            track_desc = track["description"].lower()
+            # Still apply exclusion filters if possible
+            excluded = False
+            for ex in excludes:
+                track_text = (
+                    f"{track['genre']} {track['subgenre']} "
+                    f"{' '.join(track['mood_tags'])} {track['description']}"
+                ).lower()
+                if ex in track_text:
+                    excluded = True
+                    break
+            if excluded:
+                continue
+
+            if any(g in track_genre or g in track_subgenre or g in track_desc for g in genres):
+                relaxed_genre_tracks.append(track)
+
+        if len(relaxed_genre_tracks) > 0:
+            logger.info("Found %d results by relaxing audio feature filters but keeping genre constraint", len(relaxed_genre_tracks))
+            return relaxed_genre_tracks
+
+        # If genres are completely absent from catalog, return empty list
+        logger.info("Requested genres %s not found in catalog, returning empty", genres)
+        return []
+
+    # If no genres were specified, and filtered is empty, we relax to semantic-only
+    logger.info("Post-filters too restrictive (0 results), relaxing to semantic-only")
+    return tracks
 
 
 def generate_explanation(query: str, tracks: list[dict], api_key: str = None) -> str:

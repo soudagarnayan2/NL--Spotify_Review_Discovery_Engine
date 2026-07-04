@@ -1,9 +1,9 @@
 {
-  "test_date": "2026-07-03T17:42:36.984225",
+  "test_date": "2026-07-04T11:13:16.112576",
   "total_queries": 29,
-  "passed": 26,
-  "accuracy_pct": 89.66,
-  "avg_score": 0.6618,
+  "passed": 29,
+  "accuracy_pct": 100.0,
+  "avg_score": 0.7123,
   "target_pct": 85,
   "overall_pass": true,
   "results": [
@@ -23,29 +23,29 @@
     },
     {
       "query": "lo-fi beats for studying",
-      "score": 0.875,
-      "tracks_found": 4,
+      "score": 0.833,
+      "tracks_found": 5,
       "top_track": "Affection by Jinsang",
       "pass": true
     },
     {
       "query": "energetic hip-hop workout music",
-      "score": 0.333,
-      "tracks_found": 5,
-      "top_track": "Self Care by Mac Miller",
-      "pass": false
+      "score": 0.917,
+      "tracks_found": 2,
+      "top_track": "Alright by Kendrick Lamar",
+      "pass": true
     },
     {
       "query": "romantic jazz for a dinner date",
-      "score": 0.667,
-      "tracks_found": 3,
+      "score": 0.688,
+      "tracks_found": 4,
       "top_track": "Black Gold by Esperanza Spalding",
       "pass": true
     },
     {
       "query": "dark electronic music with heavy bass",
-      "score": 0.5,
-      "tracks_found": 3,
+      "score": 0.583,
+      "tracks_found": 2,
       "top_track": "Schism by Tool",
       "pass": true
     },
@@ -66,21 +66,21 @@
     {
       "query": "emotional piano pieces that feel cinematic",
       "score": 1.0,
-      "tracks_found": 2,
+      "tracks_found": 1,
       "top_track": "Experience by Ludovico Einaudi",
       "pass": true
     },
     {
       "query": "aggressive rock anthems for the gym",
-      "score": 0.722,
-      "tracks_found": 3,
+      "score": 0.625,
+      "tracks_found": 4,
       "top_track": "Everlong by Foo Fighters",
       "pass": true
     },
     {
       "query": "dreamy R&B love songs",
-      "score": 0.833,
-      "tracks_found": 3,
+      "score": 0.688,
+      "tracks_found": 4,
       "top_track": "Best Part by Daniel Caesar ft. H.E.R.",
       "pass": true
     },
@@ -100,38 +100,38 @@
     },
     {
       "query": "high energy dance music for a party",
-      "score": 0.667,
-      "tracks_found": 1,
+      "score": 0.5,
+      "tracks_found": 3,
       "top_track": "Kar Gayi Chull by Badshah, Fazilpuria, Sukriti Kakar, Neha Kakkar",
       "pass": true
     },
     {
       "query": "soothing reggae music for relaxation",
-      "score": 0.667,
-      "tracks_found": 2,
+      "score": 0.778,
+      "tracks_found": 3,
       "top_track": "Is This Love by Bob Marley",
       "pass": true
     },
     {
       "query": "nostalgic retro synthpop from the 80s",
-      "score": 0.375,
-      "tracks_found": 2,
-      "top_track": "A Real Hero by College & Electric Youth",
-      "pass": false
+      "score": 0.5,
+      "tracks_found": 5,
+      "top_track": "Resonance by HOME",
+      "pass": true
     },
     {
       "query": "slow country ballads with soulful vocals",
-      "score": 0.5,
-      "tracks_found": 3,
+      "score": 0.583,
+      "tracks_found": 2,
       "top_track": "Tennessee Whiskey by Chris Stapleton",
       "pass": true
     },
     {
       "query": "afrobeats for dancing with friends",
-      "score": 0.2,
-      "tracks_found": 5,
+      "score": 0.875,
+      "tracks_found": 2,
       "top_track": "Ojuelegba by Wizkid",
-      "pass": false
+      "pass": true
     },
     {
       "query": "instrumental music without vocals for focus",
@@ -149,7 +149,7 @@
     },
     {
       "query": "energetic marathi dance songs",
-      "score": 0.733,
+      "score": 0.9,
       "tracks_found": 5,
       "top_track": "Kombdi Palali by Anand Shinde, Vaishali Samant",
       "pass": true
@@ -170,14 +170,14 @@
     },
     {
       "query": "energetic bhojpuri dance music",
-      "score": 0.933,
+      "score": 0.967,
       "tracks_found": 5,
       "top_track": "Saj Ke Sawar Ke by Khesari Lal Yadav, Priyanka Singh",
       "pass": true
     },
     {
       "query": "tamil kuthu dance tracks",
-      "score": 0.833,
+      "score": 0.867,
       "tracks_found": 5,
       "top_track": "Arabic Kuthu by Anirudh Ravichander, Jonita Gandhi",
       "pass": true
@@ -200,7 +200,7 @@
       "query": "old classic hindi retro songs",
       "score": 0.55,
       "tracks_found": 5,
-      "top_track": "Kabhie Kabhie Mere Dil Mein by Mukesh",
+      "top_track": "Pyaar Karne Waale by Asha Bhosle",
       "pass": true
     },
     {

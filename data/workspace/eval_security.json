@@ -1,0 +1,10 @@
+{
+  "test_date": "2026-07-04T10:38:22.429390",
+  "files_scanned": 48,
+  "credential_findings": [],
+  "gitignore_findings": [],
+  "frontend_findings": [],
+  "total_issues": 0,
+  "high_severity": 0,
+  "overall_pass": true
+}

@@ -19,6 +19,7 @@ build/
 data/chroma_db/*/
 !data/chroma_db/.gitkeep
 data/*.db
+accounts.db
 data/*.db-journal
 data/*.sqlite3
 

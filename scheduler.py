@@ -47,8 +47,8 @@ PIPELINE_STEPS = [
         "description": "Scrape App Store, Play Store, and generate social mocks",
         "cmd": [
             sys.executable, "src/phase1/ingest_reviews.py",
-            "--limit-scraped", "250",
-            "--limit-mocked", "250",
+            "--limit-scraped", "500",
+            "--limit-mocked", "500",
         ],
     },
     {

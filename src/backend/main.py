@@ -50,8 +50,8 @@ def startup_event():
 
 # Schema structures
 class IngestRequest(BaseModel):
-    limit_scraped: int = 250
-    limit_mocked: int = 250
+    limit_scraped: int = 500
+    limit_mocked: int = 500
 
 # ----------------- Core Logic Helpers -----------------
 
@@ -743,7 +743,7 @@ def check_query_rules(query_lower: str) -> tuple[bool, Optional[int]]:
         return True, 10
     elif any(t in query_lower for t in ["product improvement", "greatest impact on user", "impact on user experience", "improve user experience"]):
         return True, 11
-    if any(t in query_lower for t in ["review", "feedback", "scraped", "customer say", "user say", "sentiment", "update", "shift"]):
+    if any(t in query_lower for t in ["review", "feedback", "scraped", "customer say", "user say", "sentiment", "update", "shift", "complain", "rating", "satisfaction", "uninstall", "churn", "competitor", "switch from"]):
         return True, 0
     return False, None
 
@@ -961,17 +961,31 @@ def get_sqlite_evidence(index: int) -> str:
         return "- *Error loading evidence from SQLite database.*"
 
 def is_likely_review_query(query: str) -> bool:
-    q = query.lower()
-    keywords = [
+    q = query.lower().strip()
+    
+    # 1. Direct keywords that are strongly associated with reviews
+    direct_keywords = [
         "review", "sentiment", "feedback", "rating", "user", "customer", "complain", "opinion",
         "switch", "competitor", "apple music", "youtube music", "amazon music", "deezer", "tidal",
-        "cancel", "premium", "subscription", "satisfied", "satisfaction", "happy", "love", "hate",
+        "cancel", "premium", "subscription", "satisfied", "satisfaction", "hate",
         "frustrat", "annoy", "pain point", "improvement", "requested", "request", "missing", "priorit",
-        "buffering", "audio", "sound", "offline", "download", "playback", "search", "navigate",
-        "discover", "weekly", "daily", "behavior", "organize", "playlist", "motivate", "return",
-        "taste", "recommend", "shuffle", "loop", "repeat", "stuck", "update", "new release"
+        "buffering", "offline", "download", "playback", "navigate",
+        "stuck", "update", "new release",
+        "bug", "crash", "freeze", "slow", "error", "confus", "trend", "uninstall", "churn"
     ]
-    return any(k in q for k in keywords)
+    if any(k in q for k in direct_keywords):
+        return True
+        
+    # 2. Interrogative queries about the app experience / people / users
+    interrogatives = ["why", "what", "how", "which", "are", "is", "do", "does", "who", "should", "can"]
+    starts_interrogative = any(q.startswith(i + " ") or q.startswith(i + "'") or q.startswith(i + "s ") for i in interrogatives)
+    
+    app_contexts = ["user", "listener", "people", "app", "product", "feature", "screen", "navigation", "bug", "crash", "issue", "problem", "trend", "pain point", "satisfy", "competitor", "spotify", "music app", "navigat", "playback", "goal"]
+    
+    if starts_interrogative and any(c in q for c in app_contexts):
+        return True
+        
+    return False
 
 def get_sqlite_evidence_list(index: int) -> list[dict]:
     try:
@@ -1285,9 +1299,106 @@ def generate_dynamic_review_report(query: str) -> dict:
             "evidence": []
         }
 
+def get_dynamic_sqlite_evidence(query: str) -> tuple[str, list[dict]]:
+    query_lower = query.lower()
+    competitors = ["apple music", "youtube music", "amazon music", "deezer", "tidal", "youtube", "competitor", "compete", "switch"]
+    playback = ["playback", "buffer", "quality", "offline", "download", "sound", "crash", "bug", "freeze", "slow", "error", "confus", "play"]
+    personalization = ["taste", "recommend", "mix", "algorithm", "shuffle", "discover", "weekly", "daily", "personalize"]
+    features = ["improve", "request", "feature", "suggestion", "add", "missing", "prioritize", "want"]
+    updates = ["update", "new release", "recent", "change", "over time", "sentiment", "rating", "worse", "better"]
+    
+    where_clauses = []
+    params = []
+    
+    for term in competitors:
+        if term in query_lower:
+            where_clauses.append("r.content LIKE ?")
+            params.append(f"%{term}%")
+    for term in playback:
+        if term in query_lower:
+            where_clauses.append("r.content LIKE ?")
+            params.append(f"%{term}%")
+    for term in personalization:
+        if term in query_lower:
+            where_clauses.append("r.content LIKE ?")
+            params.append(f"%{term}%")
+    for term in features:
+        if term in query_lower:
+            where_clauses.append("r.content LIKE ?")
+            params.append(f"%{term}%")
+    for term in updates:
+        if term in query_lower:
+            where_clauses.append("r.content LIKE ?")
+            params.append(f"%{term}%")
+            
+    # Fallback to word matching if no category term matched
+    if not where_clauses:
+        words = [w for w in re.findall(r'\w+', query_lower) if len(w) > 3]
+        for w in words[:4]:
+            where_clauses.append("r.content LIKE ?")
+            params.append(f"%{w}%")
+            
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if where_clauses:
+            sql = f"""
+            SELECT r.content, r.user, r.date, i.sentiment, i.topic
+            FROM reviews r
+            JOIN insights i ON r.id = i.review_id
+            WHERE {" OR ".join(where_clauses)}
+            ORDER BY r.date DESC
+            LIMIT 15
+            """
+            cursor.execute(sql, params)
+        else:
+            cursor.execute("""
+            SELECT r.content, r.user, r.date, i.sentiment, i.topic
+            FROM reviews r
+            JOIN insights i ON r.id = i.review_id
+            ORDER BY r.date DESC
+            LIMIT 15
+            """)
+            
+        rows = cursor.fetchall()
+        conn.close()
+        
+        evidence_str = ""
+        evidence_list = []
+        for r in rows:
+            content = r["content"]
+            content = re.sub(r'https?://\S+', '[REDACTED_URL]', content)
+            content = re.sub(r'\S+@\S+', '[REDACTED_EMAIL]', content)
+            
+            user = r["user"]
+            if user.lower() in ["anonymous user", "unknown"]:
+                user = "Anonymous"
+            else:
+                user = f"User_{user[:6]}" if len(user) > 6 else f"User_{user}"
+                
+            evidence_str += f"- *\"{content}\"* ({user} — {r['date']})\n"
+            evidence_list.append({
+                "content": content,
+                "platform": "app_store" if "app" in content.lower() else "reddit",
+                "date": r["date"]
+            })
+            
+        if not evidence_str:
+            evidence_str = "- *No specific reviews found in the database matching the query keywords.*"
+            
+        return evidence_str, evidence_list
+    except Exception as e:
+        print(f"Error in get_dynamic_sqlite_evidence: {e}", file=sys.stderr)
+        return "- *Error loading evidence from SQLite database.*", []
+
 def check_review_qa(query: str, history: list = None, api_key: str = None) -> Optional[dict]:
     query_lower = query.lower()
     
+    # Pre-check: if it is not likely a review/VoC query, exit early and treat as song search
+    if not is_likely_review_query(query):
+        return None
+        
     # 1. Use LLM if available to classify and answer
     if api_key and not api_key.startswith("your_"):
         try:
@@ -1295,11 +1406,16 @@ def check_review_qa(query: str, history: list = None, api_key: str = None) -> Op
             client = Groq(api_key=api_key)
             
             classify_prompt = f"""
-            Determine if the user query is asking one of the eleven core analytical questions about Spotify user reviews or recommendations.
+            Determine if the user query is asking about Spotify user reviews, ratings, sentiments, feedback, complaints, bug reports, feature requests, competitor comparisons, or user opinions.
             
             User Query: "{query}"
             
-            The eleven core analytical questions are:
+            If the user query is a question or statement asking about what users say/complain/request/prefer in reviews, or asks generally/specifically about user feedback/VoC, return a JSON object with:
+            {{
+                "is_review_query": true,
+                "matched_question_index": 0-11
+            }}
+            (Use 1-11 if it matches one of these eleven core questions, otherwise use 0):
             1. Why do users struggle to discover new music? (e.g., UI clutter, lack of trust, expressing mood)
             2. What are the most common frustrations with recommendation algorithms? (e.g., repeating skipped songs, mainstream push, smart shuffle loop)
             3. What listening behaviors are users trying to achieve? (e.g., active exploration, passive listening, mood matching, nostalgic recovery)
@@ -1312,14 +1428,7 @@ def check_review_qa(query: str, history: list = None, api_key: str = None) -> Op
             10. Which user segments report the highest satisfaction?
             11. What product improvements would have the greatest impact on user experience?
             
-            If the user query is asking about or is a variation of one of these questions, or asks generally about what users say in reviews/feedback, return a JSON object with:
-            {{
-                "is_review_query": true,
-                "matched_question_index": 1-11
-            }}
-            (Use 0 for matched_question_index if it's a general question about reviews/feedback).
-            
-            Otherwise, return:
+            Otherwise, if the query is a song recommendation or search query (like "play some jazz", "lofi beats", "Kesariya", etc.), return:
             {{
                 "is_review_query": false,
                 "matched_question_index": null
@@ -1342,17 +1451,23 @@ def check_review_qa(query: str, history: list = None, api_key: str = None) -> Op
             is_review = classify_res.get("is_review_query", False)
             matched_idx = classify_res.get("matched_question_index")
             
+            if not is_review:
+                return None
+                
             if is_review:
-                evidence = get_sqlite_evidence(matched_idx)
-                evidence_list = get_sqlite_evidence_list(matched_idx)
+                if matched_idx in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11):
+                    evidence = get_sqlite_evidence(matched_idx)
+                    evidence_list = get_sqlite_evidence_list(matched_idx)
+                else:
+                    evidence, evidence_list = get_dynamic_sqlite_evidence(query)
                 
                 qa_prompt = f"""# Universal Review Analysis Prompt
-
+ 
 You are an expert Product Research and Voice of Customer (VoC) analyst. Your task is to analyze customer reviews and answer any question using evidence from the reviews.
-
+ 
 ## Objective
 Given a collection of customer reviews and a user question, identify patterns, summarize insights, and provide evidence-based conclusions. Focus on what users actually say rather than making assumptions.
-
+ 
 ## Instructions
 For every question:
 1. Understand the user's intent.
@@ -1363,13 +1478,13 @@ For every question:
 6. Support every insight with representative review excerpts or examples.
 7. Highlight conflicting opinions if they exist.
 8. Do not invent information that is not present in the reviews.
-
+ 
 ## Response Format
 Structure your response exactly using these headings:
-
+ 
 ### Executive Summary
 Provide a concise answer to the user's question in 2–4 sentences.
-
+ 
 ### Key Findings
 For each major theme, include:
 * Theme name
@@ -1377,29 +1492,29 @@ For each major theme, include:
 * Overall sentiment
 * Frequency (High / Medium / Low or percentage)
 * Representative review excerpts
-
+ 
 ### User Needs & Goals
 Identify what users are trying to accomplish.
-
+ 
 ### Pain Points
 Explain the most common frustrations or obstacles.
-
+ 
 ### Positive Feedback
 Describe what users appreciate.
-
+ 
 ### Actionable Recommendations
 Suggest improvements based on the review evidence.
-
+ 
 ### Confidence
 State how confident you are in the conclusions based on the quantity and consistency of the review data.
-
+ 
 ---
-
+ 
 ### Context Data for analysis:
 User Query: "{query}"
 Predefined Analysis for this topic (use this as guidance):
 {get_predefined_analysis(matched_idx)}
-
+ 
 Real User Feedback Quotes from SQLite (incorporate these as direct quotes to support your findings):
 {evidence}
 """
@@ -1421,40 +1536,41 @@ Real User Feedback Quotes from SQLite (incorporate these as direct quotes to sup
         except Exception as e:
             print(f"LLM Review QA classification failed: {e}", file=sys.stderr)
             
-    # 2. Rule-based fallback
+    # 2. Rule-based fallback (either LLM was unavailable, or it classified as is_review = False but our pre-check returned True)
     is_review, matched_idx = check_query_rules(query_lower)
     if is_review:
-        evidence = get_sqlite_evidence(matched_idx)
-        predef = get_predefined_analysis(matched_idx)
-        evidence_list = get_sqlite_evidence_list(matched_idx)
-        
-        # We wrap in format_voc_report to keep the exact response format
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM reviews")
-        total_reviews = cursor.fetchone()[0]
-        conn.close()
-        
-        local_sentiments = {"Positive": 0, "Neutral": 0, "Negative": matched_idx}
-        topics_list = [predef.split(":")[0].replace("**", "")] if matched_idx else []
-        
-        explanation = format_voc_report(query, matched_idx, "Core Analytical Query", total_reviews, len(evidence_list), local_sentiments, topics_list, evidence_list)
-        
-        return {
-            "is_review_query": True,
-            "explanation": explanation,
-            "evidence": evidence_list
-        }
-        
-    # 3. Dynamic Q&A fallback for ANY other review-related query
-    if is_likely_review_query(query):
-        report = generate_dynamic_review_report(query)
-        return {
-            "is_review_query": True,
-            "explanation": report["answer"],
-            "evidence": report["evidence"]
-        }
-        
+        if matched_idx != 0:
+            evidence = get_sqlite_evidence(matched_idx)
+            predef = get_predefined_analysis(matched_idx)
+            evidence_list = get_sqlite_evidence_list(matched_idx)
+            
+            # We wrap in format_voc_report to keep the exact response format
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM reviews")
+            total_reviews = cursor.fetchone()[0]
+            conn.close()
+            
+            local_sentiments = {"Positive": 0, "Neutral": 0, "Negative": matched_idx}
+            topics_list = [predef.split(":")[0].replace("**", "")] if matched_idx else []
+            
+            explanation = format_voc_report(query, matched_idx, "Core Analytical Query", total_reviews, len(evidence_list), local_sentiments, topics_list, evidence_list)
+            
+            return {
+                "is_review_query": True,
+                "explanation": explanation,
+                "evidence": evidence_list
+            }
+        else:
+            # General VoC/review query fallback
+            report = generate_dynamic_review_report(query)
+            return {
+                "is_review_query": True,
+                "explanation": report["answer"],
+                "evidence": report["evidence"]
+            }
+            
+    # If the rules did not classify it as a review query, return None to treat as a song query
     return None
 
 @app.post("/api/v1/discover")
