@@ -943,6 +943,33 @@ body {
 .playlist-track-item:hover { border-color: rgba(29,185,84,0.25); }
 
 .track-num { font-size: 0.85rem; font-weight: 700; color: var(--green); min-width: 20px; }
+
+.play-track-btn {
+  background: var(--green-dim);
+  color: var(--green);
+  border: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: all var(--transition);
+  margin-right: 0.25rem;
+  flex-shrink: 0;
+}
+.play-track-btn:hover {
+  background: var(--green);
+  color: #fff;
+  transform: scale(1.1);
+}
+.play-track-btn.playing {
+  background: var(--green);
+  color: #fff;
+}
+
 .track-info { flex: 1; }
 .track-name { font-size: 0.88rem; font-weight: 600; color: var(--text); display: block; }
 .track-artist { font-size: 0.78rem; color: var(--text-muted); display: block; }

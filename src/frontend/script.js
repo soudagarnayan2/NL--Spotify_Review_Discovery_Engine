@@ -1138,6 +1138,7 @@ function renderResults(query, data) {
         return `
           <div class="track-card">
             <span class="track-num">${idx + 1}</span>
+            <button class="play-track-btn" onclick="playSong('${escapedName}', '${escapedArtist}', this)">▶</button>
             <div class="track-details">
               <span class="track-name">${t.track_name || t.name}</span>
               <span class="track-artist">${t.artist}</span>
@@ -1528,7 +1529,7 @@ function clearLog() {
    PLAYLISTS
 ══════════════════════════════════════════════════════════ */
 function connectSpotify() {
-  fetch(`${API_BASE.replace('/api/v1', '')}/auth/spotify/url`)
+  fetch(`${API_BASE}/spotify/login`)
     .then(r => r.json())
     .then(d => { if (d.auth_url) window.location.href = d.auth_url; })
     .catch(() => showToast('Spotify auth not configured. Set SPOTIFY_CLIENT_ID in .env'));
@@ -1539,8 +1540,13 @@ function addToPlaylist(name, artist) {
   const idx = list.children.length + 1;
   const item = document.createElement('div');
   item.className = 'playlist-track-item';
+  
+  const escName = name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+  const escArtist = artist.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+  
   item.innerHTML = `
     <span class="track-num">${idx}</span>
+    <button class="play-track-btn" onclick="playSong('${escName}', '${escArtist}', this)">▶</button>
     <div class="track-info">
       <span class="track-name">${name}</span>
       <span class="track-artist">${artist}</span>
@@ -1553,11 +1559,95 @@ function addToPlaylist(name, artist) {
 }
 
 function removeTrack(btn) {
-  btn.closest('.playlist-track-item').remove();
+  const item = btn.closest('.playlist-track-item');
+  const playBtn = item.querySelector('.play-track-btn');
+  if (playBtn && playBtn.classList.contains('playing')) {
+    stopCurrentAudio();
+  }
+  item.remove();
   // Re-number
   document.querySelectorAll('.playlist-track-item').forEach((el, i) => {
     el.querySelector('.track-num').textContent = i + 1;
   });
+}
+
+// Procedural Audio Preview Engine (Web Audio API)
+let currentAudioContext = null;
+let currentMelodyTimer = null;
+let currentlyPlayingBtn = null;
+let currentlyPlayingTrackKey = null;
+
+function playSong(name, artist, btn) {
+  const trackKey = `${name} - ${artist}`;
+  if (currentlyPlayingTrackKey === trackKey) {
+    stopCurrentAudio();
+    return;
+  }
+  
+  stopCurrentAudio();
+  
+  currentlyPlayingTrackKey = trackKey;
+  currentlyPlayingBtn = btn;
+  btn.innerHTML = '⏸';
+  btn.classList.add('playing');
+  
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const ctx = new AudioContext();
+    currentAudioContext = ctx;
+    
+    const notes = [261.63, 329.63, 392.00, 493.88, 523.25, 587.33, 659.25, 783.99];
+    let step = 0;
+    
+    function playNextNote() {
+      if (!currentAudioContext || currentAudioContext.state === 'closed') return;
+      
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      
+      osc.type = 'sine';
+      // Generate a unique seed for the melody based on track name
+      const seed = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      const freqIndex = (step + seed) % notes.length;
+      osc.frequency.setValueAtTime(notes[freqIndex], ctx.currentTime);
+      
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.08, ctx.currentTime + 0.1);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.8);
+      
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 1.0);
+      
+      step++;
+      currentMelodyTimer = setTimeout(playNextNote, 350);
+    }
+    
+    playNextNote();
+    showToast(`Playing preview: ${name}`);
+  } catch (e) {
+    console.error('Web Audio API not supported:', e);
+    showToast('Audio playback not supported');
+  }
+}
+
+function stopCurrentAudio() {
+  if (currentMelodyTimer) {
+    clearTimeout(currentMelodyTimer);
+    currentMelodyTimer = null;
+  }
+  if (currentAudioContext) {
+    currentAudioContext.close().catch(() => {});
+    currentAudioContext = null;
+  }
+  if (currentlyPlayingBtn) {
+    currentlyPlayingBtn.innerHTML = '▶';
+    currentlyPlayingBtn.classList.remove('playing');
+    currentlyPlayingBtn = null;
+  }
+  currentlyPlayingTrackKey = null;
 }
 
 async function createPlaylist() {
@@ -1571,7 +1661,7 @@ async function createPlaylist() {
 
   showToast(`Creating playlist "${name}"...`);
   try {
-    const resp = await fetch(`${API_BASE}/playlist`, {
+    const resp = await fetch(`${API_BASE}/spotify/create-playlist`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, track_names: tracks.map(t => t.name) })
