@@ -1,18 +1,14 @@
 {
   "version": 2,
   "name": "spotify-review-discovery-engine",
-  "outputDirectory": "src/frontend",
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+  "builds": [
+    { "src": "src/frontend/**", "use": "@vercel/static" }
   ],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "DENY" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
-      ]
-    }
+  "routes": [
+    { "src": "/style.css",   "dest": "/src/frontend/style.css" },
+    { "src": "/script.js",   "dest": "/src/frontend/script.js" },
+    { "src": "/config.js",   "dest": "/src/frontend/config.js" },
+    { "src": "/favicon.ico", "dest": "/src/frontend/favicon.ico" },
+    { "src": "/(.*)",        "dest": "/src/frontend/index.html" }
   ]
 }
