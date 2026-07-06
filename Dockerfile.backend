@@ -24,17 +24,15 @@ COPY src/backend/ ./src/backend/
 COPY src/phase4/ ./src/phase4/
 COPY data/ ./data/
 
-# Copy environment config (Railway injects vars at runtime)
-COPY .env .env
+# Expose port (metadata only; Railway will bind to dynamic port)
+EXPOSE 8080
 
-# Expose port
-EXPOSE 8081
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD python -c "import requests; r=requests.get('http://localhost:8081/api/v1/health'); exit(0 if r.ok else 1)" || exit 1
+# Health check (checks dynamic PORT env var injected by Railway, falls back to 8081/8080)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD python -c "import os, requests; port = os.getenv('PORT', '8081'); r = requests.get(f'http://localhost:{port}/api/v1/health'); exit(0 if r.ok else 1)" || exit 1
 
 # Run FastAPI with Uvicorn
 CMD ["python", "-m", "uvicorn", "src.backend.main:app", \
      "--host", "0.0.0.0", "--port", "8081", \
      "--workers", "2", "--log-level", "info"]
+
