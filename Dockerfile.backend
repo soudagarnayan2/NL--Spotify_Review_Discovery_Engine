@@ -26,16 +26,20 @@ COPY src/backend/ ./src/backend/
 COPY src/phase4/ ./src/phase4/
 COPY data/ ./data/
 
-# Expose port (metadata only; Railway will bind to dynamic port)
+# Set Python path so src.backend and src.phase4 imports resolve
+ENV PYTHONPATH=/app
+
+# Expose port (metadata only; Railway will bind to dynamic $PORT)
 EXPOSE 8080
 
-# Health check (checks dynamic PORT env var injected by Railway, falls back to 8081/8080)
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-    CMD python -c "import os, requests; port = os.getenv('PORT', '8081'); r = requests.get(f'http://localhost:{port}/api/v1/health'); exit(0 if r.ok else 1)" || exit 1
+# Health check — uses dynamic $PORT injected by Railway
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD python -c "import os, requests; port = os.getenv('PORT', '8080'); r = requests.get(f'http://localhost:{port}/api/v1/health'); exit(0 if r.ok else 1)" || exit 1
 
-
-# Run FastAPI with Uvicorn
-CMD ["python", "-m", "uvicorn", "src.backend.main:app", \
-     "--host", "0.0.0.0", "--port", "8081", \
-     "--workers", "2", "--log-level", "info"]
+# Use shell form so Railway's $PORT env var is expanded at runtime
+CMD python -m uvicorn src.backend.main:app \
+    --host 0.0.0.0 \
+    --port ${PORT:-8080} \
+    --workers 2 \
+    --log-level info
 

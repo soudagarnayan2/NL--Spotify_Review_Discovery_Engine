@@ -1,0 +1,3 @@
+// This template is rendered by Vercel's buildCommand into config.js.
+// The placeholder %%BACKEND_URL%% is replaced with the BACKEND_URL env var.
+window.BACKEND_URL = '%%BACKEND_URL%%';

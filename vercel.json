@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "name": "spotify-review-discovery-engine",
+  "buildCommand": "sed 's|%%BACKEND_URL%%|'\"$BACKEND_URL\"'|g' config.js.template > config.js",
+  "outputDirectory": "src/frontend",
+  "installCommand": "echo 'no install needed'",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+      ]
+    }
+  ]
+}

@@ -16,7 +16,10 @@ window.addEventListener('unhandledrejection', function (event) {
   }
 });
 
-const API_BASE = 'http://localhost:8082/api/v1';
+// API base URL — set by config.js (injected at deploy time on Vercel).
+// Falls back to localhost for local development.
+const API_BASE = (window.BACKEND_URL || 'http://localhost:8082') + '/api/v1';
+
 
 const topicDisplayNames = {
   "Algorithmic Bubble / Recommendation Repetition": "Algorithmic Bubble",
