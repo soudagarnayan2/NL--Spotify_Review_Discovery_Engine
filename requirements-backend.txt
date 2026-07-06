@@ -10,7 +10,10 @@ requests
 langdetect==1.0.9
 groq==0.37.1
 google-play-scraper==1.2.7
-app-store-scraper==0.3.5
+# Note: app-store-scraper is installed separately in Dockerfile with --no-deps
+# to avoid requests version conflict with praw/prawcore.
+# Local installation: pip install app-store-scraper==0.3.5 --no-deps
+# app-store-scraper==0.3.5
 praw==8.0.2
 chromadb==1.5.9
 sentence-transformers==5.5.0
