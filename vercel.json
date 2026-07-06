@@ -1,9 +1,7 @@
 {
   "version": 2,
   "name": "spotify-review-discovery-engine",
-  "buildCommand": "node src/frontend/build.js",
   "outputDirectory": "src/frontend",
-  "installCommand": "true",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ],

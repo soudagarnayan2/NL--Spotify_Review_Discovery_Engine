@@ -25,10 +25,6 @@ build/
 # !data/chroma_db/.gitkeep
 # data/*.db
 
-# Frontend generated runtime config (local dev only — not committed)
-# The template (config.js.template) IS committed; config.js is generated from it.
-src/frontend/config.js
-
 # Logs
 *.log
 logs/
