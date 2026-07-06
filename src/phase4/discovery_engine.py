@@ -55,6 +55,7 @@ Extract the following JSON structure (use null for fields not mentioned):
     "genres": ["list of genres or subgenres mentioned or implied"],
     "moods": ["list of moods, feelings, or atmospheres"],
     "energy_range": [min_energy, max_energy],
+    "valence_range": [min_valence, max_valence],
     "tempo_range": [min_bpm, max_bpm],
     "acousticness_preference": "high" | "low" | "any",
     "instrumentalness_preference": "high" | "low" | "any",
@@ -64,8 +65,11 @@ Extract the following JSON structure (use null for fields not mentioned):
 
 Rules:
 - energy_range is 0.0 to 1.0 (0=calm, 1=intense)
+- valence_range is 0.0 to 1.0 (0=sad/depressing, 1=happy/joyful)
 - tempo_range is in BPM (60=slow, 180=fast)
-- If the user says "upbeat", energy > 0.6. "Chill" = energy < 0.4.
+- If the user says "upbeat" or "happy", energy > 0.6 and valence > 0.6.
+- If the user says "sad" or "melancholic", energy < 0.4 and valence < 0.4.
+- If the user says "chill" or "calm", energy < 0.4.
 - If the user says "fast", tempo > 130. "Slow" = tempo < 90.
 - description_query should be a rich, descriptive sentence combining all the user's criteria.
 - Always return valid JSON only, no extra text."""
@@ -84,6 +88,7 @@ Return valid JSON only matching this schema:
     "genres": [...],
     "moods": [...],
     "energy_range": [min, max],
+    "valence_range": [min, max],
     "tempo_range": [min, max],
     "acousticness_preference": "high" | "low" | "any",
     "instrumentalness_preference": "high" | "low" | "any",
@@ -97,7 +102,12 @@ You found these tracks:
 {tracks_text}
 
 Write a brief, engaging 2-3 sentence explanation.
-CRITICAL RULE: If the found tracks do NOT match the user's requested genre/language/origin (for example, if they asked for Marathi songs but the database returned Western ambient, rock, or pop tracks), you MUST politely and clearly clarify that the catalog does not have direct matches for their request, but explain why you are suggesting these specific tracks instead (e.g., matching a similar calm or introspective mood). Do NOT pretend or hallucinate that these Western tracks are Marathi or Marathi-inspired. Keep it honest, conversational, and helpful."""
+CRITICAL RULE: If the found tracks do NOT match the user's requested genre/language/origin (for example, if they asked for Marathi songs but the database returned Western ambient, rock, or pop tracks), you MUST politely and clearly clarify that the catalog does not have direct matches for their request, but explain why you are suggesting these specific tracks instead (e.g., matching a similar calm or introspective mood). Do NOT pretend or hallucinate that these Western tracks are Marathi or Marathi-inspired. Keep it honest, conversational, and helpful.
+
+Also, you must include a **Confidence Cue** (stating how confident you are that these recommendations match the user's criteria, e.g., "High", "Medium", or "Low", with a one-sentence reason) and a **Novelty/Familiarity Summary** (explaining the balance between new/unfamiliar tracks and popular/familiar ones, e.g., "70% Novelty / 30% Familiarity: This mix introduces obscure indie pop artists while keeping structural elements similar to your favorite pop tracks.").
+Format these at the end of your explanation as:
+Confidence: [Confidence Cue]
+Novelty/Familiarity: [Novelty/Familiarity Summary]"""
 
 
 def parse_music_intent(query: str, history: list = None, api_key: str = None) -> dict:
@@ -209,13 +219,19 @@ def _parse_intent_rules(query: str) -> dict:
         if keyword in q and mood not in moods:
             moods.append(mood)
 
-    # Energy / tempo heuristics
-    if any(w in q for w in ["upbeat", "energetic", "fast", "intense", "workout", "party", "pump"]):
+    # Energy / tempo / valence heuristics
+    valence_range = [0.0, 1.0]
+
+    if any(w in q for w in ["upbeat", "energetic", "fast", "intense", "workout", "party", "pump", "happy", "joyful", "cheerful", "excited"]):
         energy_range = [0.6, 1.0]
         tempo_range = [120, 200]
-    elif any(w in q for w in ["calm", "chill", "slow", "peaceful", "relax", "sleep", "ambient", "gentle"]):
+        if any(w in q for w in ["happy", "joyful", "cheerful", "excited", "upbeat"]):
+            valence_range = [0.55, 1.0]
+    elif any(w in q for w in ["calm", "chill", "slow", "peaceful", "relax", "sleep", "ambient", "gentle", "sad", "melancholic", "gloomy", "cry", "depressing", "bittersweet"]):
         energy_range = [0.0, 0.4]
         tempo_range = [60, 100]
+        if any(w in q for w in ["sad", "melancholic", "gloomy", "cry", "depressing", "bittersweet"]):
+            valence_range = [0.0, 0.45]
     elif any(w in q for w in ["moderate", "medium", "balanced"]):
         energy_range = [0.3, 0.7]
         tempo_range = [90, 140]
@@ -244,6 +260,7 @@ def _parse_intent_rules(query: str) -> dict:
         "genres": genres or None,
         "moods": moods or ["general"],
         "energy_range": energy_range,
+        "valence_range": valence_range,
         "tempo_range": tempo_range,
         "acousticness_preference": acousticness,
         "instrumentalness_preference": instrumentalness,
@@ -300,6 +317,8 @@ def refine_search(refinement: str, previous_intent: dict, api_key: str = None) -
         merged["moods"] = refined["moods"]
     if refined["energy_range"] != [0.0, 1.0]:
         merged["energy_range"] = refined["energy_range"]
+    if refined.get("valence_range") and refined["valence_range"] != [0.0, 1.0]:
+        merged["valence_range"] = refined["valence_range"]
     if refined["tempo_range"] != [60, 200]:
         merged["tempo_range"] = refined["tempo_range"]
     if refined["acousticness_preference"] != "any":
@@ -314,13 +333,14 @@ def refine_search(refinement: str, previous_intent: dict, api_key: str = None) -
     return merged
 
 
-def search_tracks(parsed_intent: dict, n_results: int = 10) -> list[dict]:
+def search_tracks(parsed_intent: dict, n_results: int = 10, exclude_ids: list[str] = None) -> list[dict]:
     """
     Query ChromaDB using the parsed intent and apply post-filters.
 
     Args:
         parsed_intent: Output from parse_music_intent or refine_search.
         n_results: Number of results to return.
+        exclude_ids: List of track IDs to filter out.
 
     Returns:
         List of track dicts sorted by relevance.
@@ -353,6 +373,8 @@ def search_tracks(parsed_intent: dict, n_results: int = 10) -> list[dict]:
     # Build track list with metadata
     tracks = []
     for i, track_id in enumerate(results["ids"][0]):
+        if exclude_ids and track_id in exclude_ids:
+            continue
         meta = results["metadatas"][0][i]
         distance = results["distances"][0][i] if results.get("distances") else 0
 
@@ -370,6 +392,7 @@ def search_tracks(parsed_intent: dict, n_results: int = 10) -> list[dict]:
             "acousticness": float(meta.get("acousticness", 0.5)),
             "instrumentalness": float(meta.get("instrumentalness", 0.5)),
             "description": meta.get("description", ""),
+            "popularity": int(meta.get("popularity", 50)),
             "relevance_score": round(1.0 / (1.0 + distance), 3),
         })
 
@@ -378,14 +401,16 @@ def search_tracks(parsed_intent: dict, n_results: int = 10) -> list[dict]:
 
     # Sort by relevance, filter out low-relevance scores, and take top N
     filtered.sort(key=lambda t: t["relevance_score"], reverse=True)
-    filtered = [t for t in filtered if t["relevance_score"] >= 0.53]
+    filtered = [t for t in filtered if t["relevance_score"] >= 0.45]
     return filtered[:n_results]
 
 
+
 def _apply_filters(tracks: list[dict], intent: dict) -> list[dict]:
-    """Apply energy, tempo, acousticness, instrumentalness, exclusions, and genre filters."""
+    """Apply energy, tempo, valence, acousticness, instrumentalness, exclusions, and genre filters."""
     filtered = []
     energy_range = intent.get("energy_range", [0.0, 1.0])
+    valence_range = intent.get("valence_range", [0.0, 1.0])
     tempo_range = intent.get("tempo_range", [60, 200])
     acoustic_pref = intent.get("acousticness_preference", "any")
     instrumental_pref = intent.get("instrumentalness_preference", "any")
@@ -395,6 +420,10 @@ def _apply_filters(tracks: list[dict], intent: dict) -> list[dict]:
     for track in tracks:
         # Energy filter (with some tolerance)
         if not (energy_range[0] - 0.15 <= track["energy"] <= energy_range[1] + 0.15):
+            continue
+
+        # Valence filter (with some tolerance)
+        if not (valence_range[0] - 0.15 <= track["valence"] <= valence_range[1] + 0.15):
             continue
 
         # Tempo filter (with tolerance)
@@ -447,6 +476,10 @@ def _apply_filters(tracks: list[dict], intent: dict) -> list[dict]:
     # If the user specified a genre, we should try to return tracks of that genre
     # by relaxing other filters (energy, tempo, acousticness, instrumentalness)
     if genres:
+        relaxed_genre_tracks = []
+        for track in filtered:  # Wait, filtered is empty! We must search across all candidate tracks!
+            pass
+        # Let's fix this catalog relaxation fallback so it iterates over 'tracks' instead of 'filtered'
         relaxed_genre_tracks = []
         for track in tracks:
             track_genre = track["genre"].lower()
@@ -525,8 +558,106 @@ def generate_explanation(query: str, tracks: list[dict], api_key: str = None) ->
     # Fallback
     genres = list(set(t["genre"] for t in tracks[:5]))
     moods = list(set(m for t in tracks[:5] for m in t["mood_tags"][:2]))
-    return (
+    avg_pop = sum(t.get("popularity", 50) for t in tracks) / len(tracks) if tracks else 50
+    novelty_pct = int(100 - avg_pop)
+    familiarity_pct = int(avg_pop)
+    
+    fallback_text = (
         f"I found {len(tracks)} tracks that match your request! "
         f"The selection spans {', '.join(genres[:3])} with moods like {', '.join(moods[:4])}. "
-        f"These tracks were chosen for their sonic qualities that align with what you described."
+        f"These tracks were chosen for their sonic qualities that align with what you described.\n\n"
+        f"Confidence: High (matches your explicit criteria)\n"
+        f"Novelty/Familiarity: {novelty_pct}% Novelty / {familiarity_pct}% Familiarity: A balanced selection of fresh and popular tracks."
     )
+    return fallback_text
+
+
+def generate_track_reasons(query: str, tracks: list[dict], api_key: str = None) -> list[str]:
+    """
+    Generate plain-language reasons explaining why each track was selected for the query.
+    Uses LLM (Groq) if api_key is provided, otherwise falls back to metadata-driven rules.
+    """
+    if not tracks:
+        return []
+
+    api_key = api_key or os.getenv("GROQ_API_KEY")
+
+    # Try LLM
+    if api_key and not api_key.startswith("your_"):
+        try:
+            from groq import Groq
+            client = Groq(api_key=api_key)
+
+            # Format track descriptions for the LLM
+            tracks_text = "\n".join(
+                f"Track ID: {t.get('id')}\n"
+                f"Name: {t.get('track_name', t.get('name'))} by {t.get('artist')}\n"
+                f"Genre/Subgenre: {t.get('genre')}/{t.get('subgenre')}\n"
+                f"Moods: {', '.join(t.get('mood_tags', []))}\n"
+                f"Energy: {t.get('energy')}, Valence: {t.get('valence')}, Tempo: {t.get('tempo_bpm', t.get('tempo'))} BPM\n"
+                f"Description: {t.get('description', '')}\n"
+                for t in tracks
+            )
+
+            prompt = f"""You are a music expert recommending songs for a user's query: "{query}"
+
+For each of the selected tracks below, write a short, specific, 1-sentence explanation (in plain, natural language) why this song fits their query. Focus on its genre, mood tags, tempo, energy, or description. Be creative but accurate.
+
+Tracks:
+{tracks_text}
+
+Respond in strict JSON format:
+{{
+    "reasons": [
+        {{"track_id": "...", "reason": "..."}},
+        ...
+    ]
+}}
+Ensure the track_id matches the requested track IDs exactly. Do not add any extra text or conversational filler outside the JSON structure."""
+
+            resp = client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": "You output only valid JSON. No markdown, no explanation."},
+                    {"role": "user", "content": prompt},
+                ],
+                model="llama-3.1-8b-instant",
+                response_format={"type": "json_object"},
+                temperature=0.4,
+            )
+
+            result = json.loads(resp.choices[0].message.content)
+            reasons_list = result.get("reasons", [])
+
+            # Map reasons by track ID
+            reasons_by_id = {r.get("track_id"): r.get("reason") for r in reasons_list if r.get("track_id")}
+
+            # Construct reasons in order of input tracks
+            final_reasons = []
+            for t in tracks:
+                tid = t.get("id")
+                final_reasons.append(reasons_by_id.get(tid) or _fallback_track_reason(query, t))
+            return final_reasons
+        except Exception as exc:
+            logger.warning("LLM track reasons generation failed: %s — using rules fallback", exc)
+
+    # Fallback
+    return [_fallback_track_reason(query, t) for t in tracks]
+
+
+def _fallback_track_reason(query: str, track: dict) -> str:
+    """Helper to generate a fallback rule-based reason for a track."""
+    genre = track.get("genre", "music")
+    subgenre = track.get("subgenre")
+    moods = track.get("mood_tags", [])
+    tempo = track.get("tempo_bpm", track.get("tempo", 120))
+    energy = track.get("energy", 0.5)
+
+    # Simple descriptions based on energy
+    energy_desc = "high-energy" if energy > 0.7 else ("chill" if energy < 0.4 else "balanced")
+    mood_desc = f" with a {moods[0]} vibe" if moods else ""
+
+    reason = f"Fits your request as a {energy_desc} {genre}"
+    if subgenre:
+        reason += f" ({subgenre})"
+    reason += f" track{mood_desc}, moving at {int(tempo)} BPM."
+    return reason

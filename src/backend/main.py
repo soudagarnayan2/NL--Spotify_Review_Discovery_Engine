@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import sqlite3
 import random
 import re
 import asyncio
@@ -16,9 +17,13 @@ from langdetect import detect
 # Load environment variables
 load_dotenv()
 
+import logging
+logger = logging.getLogger("backend")
+
 # Import database helpers
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 from database import get_db_connection, init_db
+import mood_service
 
 # Try imports for scrapers & MCP
 from app_store_scraper import AppStore
@@ -47,6 +52,11 @@ app.add_middleware(
 @app.on_event("startup")
 def startup_event():
     init_db()
+    mood_service.init_mood_tables()
+    try:
+        mood_service.rebuild_mood_catalogs()
+    except Exception as e:
+        print(f"Failed to build mood catalogs on startup: {e}", file=sys.stderr)
 
 # Schema structures
 class IngestRequest(BaseModel):
@@ -679,7 +689,7 @@ try:
     import discovery_engine
     import importlib
     importlib.reload(discovery_engine)
-    from discovery_engine import parse_music_intent, search_tracks, refine_search, generate_explanation
+    from discovery_engine import parse_music_intent, search_tracks, refine_search, generate_explanation, generate_track_reasons
     from spotify_auth import get_auth_url, exchange_code, is_authenticated, create_playlist, get_current_user
     from feedback_agent import send_feedback_survey, log_feedback_to_docs, get_feedback_stats
     PHASE4_AVAILABLE = True
@@ -702,6 +712,18 @@ class PlaylistRequest(BaseModel):
     session_id: str = "default"
     name: str = "AI Discovery Playlist"
     track_names: list = []
+
+class MoodFeedbackRequest(BaseModel):
+    mood: str
+    feedback_type: str = "negative"
+
+class ListenLogRequest(BaseModel):
+    session_id: str = "default_user"
+
+class ListenTitleRequest(BaseModel):
+    title: str
+    artist: str
+    session_id: str = "default_user"
 
 class FeedbackRequest(BaseModel):
     user_email: str = "stakeholders@spotify.com"
@@ -1573,6 +1595,44 @@ Real User Feedback Quotes from SQLite (incorporate these as direct quotes to sup
     # If the rules did not classify it as a review query, return None to treat as a song query
     return None
 
+def extract_meta_metrics(explanation: str, tracks: list) -> tuple[str, str, str]:
+    import re
+    confidence_cue = None
+    novelty_summary = None
+    
+    # 1. Try to extract from explanation text
+    conf_match = re.search(r"Confidence:\s*(.*)", explanation, re.IGNORECASE)
+    if conf_match:
+        confidence_cue = conf_match.group(1).strip()
+        
+    nov_match = re.search(r"Novelty/Familiarity:\s*(.*)", explanation, re.IGNORECASE)
+    if nov_match:
+        novelty_summary = nov_match.group(1).strip()
+        
+    # Clean up the explanation text to remove the Confidence: and Novelty/Familiarity: lines
+    explanation_clean = explanation
+    explanation_clean = re.sub(r"Confidence:\s*.*", "", explanation_clean, flags=re.IGNORECASE)
+    explanation_clean = re.sub(r"Novelty/Familiarity:\s*.*", "", explanation_clean, flags=re.IGNORECASE)
+    explanation_clean = explanation_clean.strip()
+    
+    # Default fallbacks if not found
+    if not confidence_cue:
+        if tracks:
+            confidence_cue = "High" if len(tracks) >= 3 else "Medium"
+        else:
+            confidence_cue = "Low"
+            
+    if not novelty_summary:
+        if tracks:
+            avg_pop = sum(t.get("popularity", 50) for t in tracks) / len(tracks)
+            novelty_pct = int(100 - avg_pop)
+            familiarity_pct = int(avg_pop)
+            novelty_summary = f"{novelty_pct}% Novelty / {familiarity_pct}% Familiarity: Balanced mix of familiar and new music."
+        else:
+            novelty_summary = "100% Novelty / 0% Familiarity: No recommendations available."
+            
+    return explanation_clean, confidence_cue, novelty_summary
+
 @app.post("/api/v1/discover")
 async def api_discover(req: DiscoverRequest):
     """Natural language music discovery — parse query and search ChromaDB."""
@@ -1608,10 +1668,30 @@ async def api_discover(req: DiscoverRequest):
     parsed = parse_music_intent(req.query, req.history, api_key=groq_key)
 
     # Search ChromaDB
-    tracks = search_tracks(parsed, n_results=10)
+    tracks = search_tracks(parsed, n_results=5)
+
+    # Enrich tracks with preview URLs from Spotify if authenticated
+    try:
+        from spotify_auth import is_authenticated, search_spotify_tracks
+        if is_authenticated(req.session_id):
+            enriched_tracks = []
+            for t in tracks:
+                query_str = f"{t.get('track_name', t.get('name'))} {t.get('artist')}"
+                spotify_matches = search_spotify_tracks(req.session_id, query_str, limit=1)
+                preview_url = None
+                if spotify_matches and len(spotify_matches) > 0:
+                    preview_url = spotify_matches[0].get("preview_url")
+                
+                enriched_track = dict(t)
+                enriched_track["preview_url"] = preview_url
+                enriched_tracks.append(enriched_track)
+            tracks = enriched_tracks
+    except Exception as e:
+        logger.warning(f"Failed to enrich tracks with Spotify preview URLs: {e}")
 
     # Generate explanation
     explanation = generate_explanation(req.query, tracks, api_key=groq_key)
+    explanation, confidence_cue, novelty_summary = extract_meta_metrics(explanation, tracks)
 
     # Store in session
     _discovery_sessions[req.session_id] = {
@@ -1630,6 +1710,8 @@ async def api_discover(req: DiscoverRequest):
         "parsed_intent": parsed,
         "tracks": tracks,
         "explanation": explanation,
+        "confidence_cue": confidence_cue,
+        "novelty_summary": novelty_summary,
         "session_id": req.session_id,
         "track_count": len(tracks),
     }
@@ -1669,16 +1751,55 @@ async def api_discover_refine(req: RefineRequest):
     if not previous:
         raise HTTPException(status_code=400, detail="No previous search found. Use /api/v1/discover first.")
 
-    # Refine the intent
-    refined = refine_search(req.refinement, previous, api_key=groq_key)
+    refinement_lower = req.refinement.lower().strip()
+    is_keep_mood = any(w in refinement_lower for w in ["keep this mood", "keep mood", "keep vibe", "keep this vibe", "lock mood", "lock vibe"])
+    is_too_safe = any(w in refinement_lower for w in ["too safe", "safe", "adventurous", "surprise me", "obscure", "niche"])
+    is_pure_steering = refinement_lower in [
+        "keep this mood", "keep mood", "keep vibe", "keep this vibe", "lock mood", "lock vibe",
+        "too safe", "safe", "adventurous", "surprise me", "obscure", "niche",
+        "why this", "why this?", "explain"
+    ]
+
+    # Refine the intent (bypass LLM/rules parser if it's pure steering)
+    if is_pure_steering:
+        refined = dict(previous)
+    else:
+        refined = refine_search(req.refinement, previous, api_key=groq_key)
+
+    # Apply locks/limits
+    if is_keep_mood:
+        refined["lock_mood"] = True
+    if is_too_safe:
+        refined["adventurous"] = True
+        refined["popularity_limit"] = 40
 
     # Re-search
-    tracks = search_tracks(refined, n_results=10)
+    tracks = search_tracks(refined, n_results=5)
+
+    # Enrich tracks with preview URLs from Spotify if authenticated
+    try:
+        from spotify_auth import is_authenticated, search_spotify_tracks
+        if is_authenticated(req.session_id):
+            enriched_tracks = []
+            for t in tracks:
+                query_str = f"{t.get('track_name', t.get('name'))} {t.get('artist')}"
+                spotify_matches = search_spotify_tracks(req.session_id, query_str, limit=1)
+                preview_url = None
+                if spotify_matches and len(spotify_matches) > 0:
+                    preview_url = spotify_matches[0].get("preview_url")
+                
+                enriched_track = dict(t)
+                enriched_track["preview_url"] = preview_url
+                enriched_tracks.append(enriched_track)
+            tracks = enriched_tracks
+    except Exception as e:
+        logger.warning(f"Failed to enrich refined tracks with Spotify preview URLs: {e}")
 
     explanation = generate_explanation(
         f"{_discovery_sessions.get(req.session_id, {}).get('query', '')} → {req.refinement}",
         tracks, api_key=groq_key,
     )
+    explanation, confidence_cue, novelty_summary = extract_meta_metrics(explanation, tracks)
 
     # Update session
     if req.session_id in _discovery_sessions:
@@ -1695,16 +1816,219 @@ async def api_discover_refine(req: RefineRequest):
         "parsed_intent": refined,
         "tracks": tracks,
         "explanation": explanation,
+        "confidence_cue": confidence_cue,
+        "novelty_summary": novelty_summary,
+        "track_count": len(tracks),
+    }
+
+@app.post("/api/v1/wanderer/discover")
+async def api_wanderer_discover(req: DiscoverRequest):
+    """Natural language music discovery for Wanderer - excludes listening history to break bubble, states reasons."""
+    if not PHASE4_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Phase 4 modules not available.")
+
+    groq_key = os.getenv("GROQ_API_KEY")
+
+    # 1. Retrieve the user's listening history for exclusion
+    exclude_ids = []
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT song_id FROM listening_history WHERE user_id = ?", (req.session_id,))
+        exclude_ids = [row["song_id"] for row in cursor.fetchall()]
+        conn.close()
+    except Exception as e:
+        print(f"Error querying listening history: {e}", file=sys.stderr)
+
+    # 2. Parse the intent
+    parsed = parse_music_intent(req.query, req.history, api_key=groq_key)
+
+    # 3. Search ChromaDB, passing the exclusion list
+    tracks = search_tracks(parsed, n_results=5, exclude_ids=exclude_ids)
+
+    # 4. Enrich tracks with preview URLs from Spotify if authenticated
+    try:
+        from spotify_auth import is_authenticated, search_spotify_tracks
+        if is_authenticated(req.session_id):
+            enriched_tracks = []
+            for t in tracks:
+                query_str = f"{t.get('track_name', t.get('name'))} {t.get('artist')}"
+                spotify_matches = search_spotify_tracks(req.session_id, query_str, limit=1)
+                preview_url = None
+                if spotify_matches and len(spotify_matches) > 0:
+                    preview_url = spotify_matches[0].get("preview_url")
+                
+                enriched_track = dict(t)
+                enriched_track["preview_url"] = preview_url
+                enriched_tracks.append(enriched_track)
+            tracks = enriched_tracks
+    except Exception as e:
+        print(f"Failed to enrich tracks with Spotify preview URLs: {e}", file=sys.stderr)
+
+    # 5. Generate plain-language reasons for each pick
+    reasons = generate_track_reasons(req.query, tracks, api_key=groq_key)
+    for idx, t in enumerate(tracks):
+        t["reason"] = reasons[idx] if idx < len(reasons) else "Selected based on matching audio characteristics."
+
+    # 6. Generate overview explanation
+    explanation = generate_explanation(req.query, tracks, api_key=groq_key)
+    explanation, confidence_cue, novelty_summary = extract_meta_metrics(explanation, tracks)
+
+    # 7. Store in session
+    _discovery_sessions[req.session_id] = {
+        "query": req.query,
+        "parsed_intent": parsed,
+        "tracks": tracks,
+        "history": req.history + [
+            {"role": "user", "content": req.query},
+            {"role": "assistant", "content": explanation},
+        ],
+    }
+
+    return {
+        "status": "success",
+        "query": req.query,
+        "parsed_intent": parsed,
+        "tracks": tracks,
+        "explanation": explanation,
+        "confidence_cue": confidence_cue,
+        "novelty_summary": novelty_summary,
+        "session_id": req.session_id,
+        "track_count": len(tracks),
+    }
+
+@app.post("/api/v1/wanderer/refine")
+async def api_wanderer_refine(req: RefineRequest):
+    """Refine Wanderer discovery results with a follow-up instruction. Handles steering commands."""
+    if not PHASE4_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Phase 4 modules not available.")
+
+    groq_key = os.getenv("GROQ_API_KEY")
+
+    # Get previous intent from session or request
+    previous = req.previous_intent
+    if not previous and req.session_id in _discovery_sessions:
+        previous = _discovery_sessions[req.session_id].get("parsed_intent", {})
+
+    if not previous:
+        raise HTTPException(status_code=400, detail="No previous search found. Use /api/v1/wanderer/discover first.")
+
+    # 1. Retrieve the user's listening history for exclusion
+    exclude_ids = []
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT song_id FROM listening_history WHERE user_id = ?", (req.session_id,))
+        exclude_ids = [row["song_id"] for row in cursor.fetchall()]
+        conn.close()
+    except Exception as e:
+        print(f"Error querying listening history: {e}", file=sys.stderr)
+
+    refinement_lower = req.refinement.lower().strip()
+    
+    # Check for specific steering keywords
+    is_too_safe = any(w in refinement_lower for w in ["too safe", "safe", "adventurous", "surprise me", "obscure", "niche"])
+    is_keep_mood = any(w in refinement_lower for w in ["keep this mood", "keep mood", "keep vibe", "keep this vibe", "lock mood", "lock vibe"])
+    is_pure_steering = refinement_lower in [
+        "keep this mood", "keep mood", "keep vibe", "keep this vibe", "lock mood", "lock vibe",
+        "too safe", "safe", "adventurous", "surprise me", "obscure", "niche",
+        "why this", "why this?", "explain"
+    ]
+
+    # If keep mood is requested, preserve it in the previous intent
+    locked_moods = previous.get("moods") if is_keep_mood or previous.get("lock_mood") else None
+
+    # Refine the intent (bypass LLM/rules parser if it's pure steering)
+    if is_pure_steering:
+        refined = dict(previous)
+    else:
+        refined = refine_search(req.refinement, previous, api_key=groq_key)
+    
+    # Re-apply lock mood if active
+    if locked_moods:
+        refined["moods"] = locked_moods
+        refined["lock_mood"] = True
+    elif is_keep_mood:
+        refined["lock_mood"] = True
+
+    # If "too safe" was requested, restrict popularity to niche tracks (popularity <= 40)
+    if is_too_safe or previous.get("adventurous"):
+        refined["adventurous"] = True
+        refined["popularity_limit"] = 40
+        if not is_pure_steering:
+            refined["description_query"] = refined.get("description_query", "") + " niche obscure independent artist"
+
+    # Search ChromaDB
+    tracks = search_tracks(refined, n_results=5, exclude_ids=exclude_ids)
+
+    # Apply manual popularity filtering for "too safe"
+    if refined.get("adventurous") or is_too_safe:
+        tracks = [t for t in tracks if t.get("popularity", 50) <= 42]
+        if not tracks:
+            tracks = search_tracks(refined, n_results=20, exclude_ids=exclude_ids)
+            tracks.sort(key=lambda t: t.get("popularity", 50))
+            tracks = tracks[:5]
+
+    # Enrich tracks with preview URLs
+    try:
+        from spotify_auth import is_authenticated, search_spotify_tracks
+        if is_authenticated(req.session_id):
+            enriched_tracks = []
+            for t in tracks:
+                query_str = f"{t.get('track_name', t.get('name'))} {t.get('artist')}"
+                spotify_matches = search_spotify_tracks(req.session_id, query_str, limit=1)
+                preview_url = None
+                if spotify_matches and len(spotify_matches) > 0:
+                    preview_url = spotify_matches[0].get("preview_url")
+                
+                enriched_track = dict(t)
+                enriched_track["preview_url"] = preview_url
+                enriched_tracks.append(enriched_track)
+            tracks = enriched_tracks
+    except Exception as e:
+        print(f"Failed to enrich tracks with Spotify preview URLs: {e}", file=sys.stderr)
+
+    # Generate reasons
+    reasons = generate_track_reasons(f"{_discovery_sessions.get(req.session_id, {}).get('query', '')} → {req.refinement}", tracks, api_key=groq_key)
+    for idx, t in enumerate(tracks):
+        t["reason"] = reasons[idx] if idx < len(reasons) else "Selected based on matching audio characteristics."
+
+    explanation_query = f"{_discovery_sessions.get(req.session_id, {}).get('query', '')} → {req.refinement}"
+    if "why this?" in refinement_lower or "explain" in refinement_lower:
+        explanation = "Here is why these tracks match your request: " + ", ".join([f"'{t['track_name']}' is included because {t['reason'].lower()}" for t in tracks[:3]])
+    else:
+        explanation = generate_explanation(explanation_query, tracks, api_key=groq_key)
+    explanation, confidence_cue, novelty_summary = extract_meta_metrics(explanation, tracks)
+
+    # Update session
+    if req.session_id in _discovery_sessions:
+        _discovery_sessions[req.session_id]["parsed_intent"] = refined
+        _discovery_sessions[req.session_id]["tracks"] = tracks
+        _discovery_sessions[req.session_id]["history"].extend([
+            {"role": "user", "content": req.refinement},
+            {"role": "assistant", "content": explanation},
+        ])
+
+    return {
+        "status": "success",
+        "refinement": req.refinement,
+        "parsed_intent": refined,
+        "tracks": tracks,
+        "explanation": explanation,
+        "confidence_cue": confidence_cue,
+        "novelty_summary": novelty_summary,
         "track_count": len(tracks),
     }
 
 @app.get("/api/v1/spotify/login")
-async def api_spotify_login(session_id: str = "default"):
+async def api_spotify_login(session_id: str = "default", frontend_url: str = "http://localhost:8000"):
     """Get the Spotify OAuth authorization URL."""
     if not PHASE4_AVAILABLE:
         raise HTTPException(status_code=503, detail="Phase 4 modules not available.")
-    redirect_uri = os.getenv("SPOTIFY_REDIRECT_URI", "http://localhost:8000/callback")
-    auth_url = get_auth_url(session_id, redirect_uri)
+    redirect_uri = os.getenv("SPOTIFY_REDIRECT_URI", "http://127.0.0.1:8081/api/v1/spotify/callback")
+    # Encode frontend origin in state
+    state = f"{session_id}|{frontend_url}"
+    auth_url = get_auth_url(state, redirect_uri)
     return {"auth_url": auth_url, "session_id": session_id}
 
 @app.get("/api/v1/spotify/callback")
@@ -1712,15 +2036,22 @@ async def api_spotify_callback(code: str = "", state: str = "default"):
     """Handle Spotify OAuth callback and exchange code for token."""
     if not PHASE4_AVAILABLE:
         raise HTTPException(status_code=503, detail="Phase 4 modules not available.")
-    redirect_uri = os.getenv("SPOTIFY_REDIRECT_URI", "http://localhost:8000/callback")
-    token = exchange_code(code, state, redirect_uri)
-    return {
-        "status": "success",
-        "session_id": state,
-        "authenticated": True,
-        "token_type": token.get("token_type", "Bearer"),
-        "message": "Spotify authentication successful!",
-    }
+    
+    # Parse state to extract session_id and frontend redirect url
+    parts = state.split("|")
+    session_id = parts[0]
+    frontend_url = parts[1] if len(parts) > 1 else "http://localhost:8000"
+    
+    redirect_uri = os.getenv("SPOTIFY_REDIRECT_URI", "http://127.0.0.1:8081/api/v1/spotify/callback")
+    try:
+        exchange_code(code, session_id, redirect_uri)
+    except Exception as e:
+        print(f"Spotify token exchange failed: {e}", file=sys.stderr)
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url=f"{frontend_url}/?spotify=error")
+    
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url=f"{frontend_url}/?spotify=success")
 
 @app.post("/api/v1/spotify/create-playlist")
 async def api_create_playlist(req: PlaylistRequest):
@@ -1762,6 +2093,257 @@ async def api_feedback_stats():
     if not PHASE4_AVAILABLE:
         raise HTTPException(status_code=503, detail="Phase 4 modules not available.")
     return get_feedback_stats()
+
+# ────────────────────────────────────────────────────────────────────────────
+# Mood Catalog Endpoints
+# ────────────────────────────────────────────────────────────────────────────
+
+@app.get("/api/v1/moods")
+async def api_get_moods():
+    """List available moods and their metadata (display names, gradients, etc.)"""
+    try:
+        return mood_service.get_moods_list()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v1/moods/{mood}/songs")
+async def api_get_mood_songs(
+    mood: str,
+    limit: int = 50,
+    offset: int = 0,
+    personalized: bool = False,
+    session_id: str = "default_user"
+):
+    """Retrieve ranked catalog of songs for a specific mood, optionally personalized."""
+    try:
+        config = mood_service.load_mood_config()
+        if mood not in config:
+            raise HTTPException(status_code=404, detail=f"Mood '{mood}' not found in taxonomy.")
+        
+        songs = mood_service.get_mood_catalog(
+            mood=mood,
+            limit=limit,
+            offset=offset,
+            personalized=personalized,
+            session_id=session_id
+        )
+        return songs
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/v1/songs/{song_id}/mood-feedback")
+async def api_post_mood_feedback(song_id: str, req: MoodFeedbackRequest):
+    """Log user feedback (e.g. 'doesn't fit this mood') and trigger an immediate re-rank."""
+    try:
+        mood_service.log_mood_feedback(song_id, req.mood, req.feedback_type)
+        return {"status": "success", "message": f"Logged {req.feedback_type} feedback for song {song_id} and mood {req.mood}."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/v1/songs/{song_id}/listen")
+async def api_post_listen_log(song_id: str, req: ListenLogRequest):
+    """Log a simulated listening event for a song to build listening history for personalization."""
+    try:
+        mood_service.log_simulated_play(req.session_id, song_id)
+        return {"status": "success", "message": f"Logged listening event for song {song_id}."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/v1/listen-log")
+async def api_post_listen_log_by_title(req: ListenTitleRequest):
+    """Log a simulated listening event using song title and artist."""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM songs WHERE title = ? AND artist = ?", (req.title, req.artist))
+        row = cursor.fetchone()
+        if row:
+            song_id = row["id"]
+            mood_service.log_simulated_play(req.session_id, song_id)
+            conn.close()
+            return {"status": "success", "song_id": song_id}
+        conn.close()
+        return {"status": "ignored", "message": "Song not found in catalog"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/v1/moods/rebuild")
+async def api_post_rebuild_moods():
+    """Force rebuild of mood catalogs and caches."""
+    try:
+        mood_service.rebuild_mood_catalogs()
+        return {"status": "success", "message": "Mood catalogs rebuilt and cached successfully."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v1/spotify/status")
+async def api_spotify_status(session_id: str = "default_user"):
+    """Check if the session has a valid Spotify token."""
+    if not PHASE4_AVAILABLE:
+        return {"authenticated": False}
+    from spotify_auth import is_authenticated
+    return {"authenticated": is_authenticated(session_id)}
+
+@app.get("/api/v1/spotify/track-embed")
+async def api_spotify_track_embed(name: str, artist: str = "", session_id: str = "frontend_session"):
+    """
+    Resolve a track name + artist to a Spotify embed URL.
+    Works unauthenticated (30s preview) and with auth (full playback).
+    Also returns the Spotify track URI and open.spotify.com link.
+    """
+    if not PHASE4_AVAILABLE:
+        return {"embed_url": None, "track_uri": None, "spotify_url": None, "track_id": None}
+
+    try:
+        from spotify_auth import search_spotify_tracks
+        query = f"{name} {artist}".strip()
+        results = search_spotify_tracks(session_id, query, limit=1)
+
+        if results:
+            track = results[0]
+            uri = track.get("uri", "")            # e.g. spotify:track:3n3Ppam7vgaVa1iaRUIOKE
+            # Extract the raw track ID from the URI
+            track_id = uri.split(":")[-1] if ":" in uri else None
+
+            # Don't expose mock IDs in the embed
+            if track_id and track_id.startswith("mock_"):
+                return {
+                    "embed_url": None,
+                    "track_uri": None,
+                    "spotify_url": None,
+                    "track_id": None,
+                    "mock": True,
+                }
+
+            embed_url = f"https://open.spotify.com/embed/track/{track_id}?utm_source=generator&theme=0" if track_id else None
+            spotify_url = f"https://open.spotify.com/track/{track_id}" if track_id else None
+
+            return {
+                "embed_url": embed_url,
+                "track_uri": uri,
+                "spotify_url": spotify_url,
+                "track_id": track_id,
+                "preview_url": track.get("preview_url"),
+                "mock": False,
+            }
+    except Exception as e:
+        print(f"Spotify track embed lookup failed: {e}", file=sys.stderr)
+
+    return {"embed_url": None, "track_uri": None, "spotify_url": None, "track_id": None}
+
+@app.get("/api/v1/playlist-suggestions")
+async def api_playlist_suggestions(session_id: str = "default_user", limit: int = 5):
+    """Retrieve custom recommendations and latest additions for the Playlists Creator."""
+    try:
+        if not PHASE4_AVAILABLE:
+            raise HTTPException(status_code=503, detail="Phase 4 modules not available.")
+            
+        collection = discovery_engine._get_collection()
+        if collection.count() == 0:
+            return {"recommended": [], "latest": [], "preference": {"genre": "Pop", "mood": "happy"}}
+            
+        # Retrieve all tracks from ChromaDB
+        res = collection.get(include=["metadatas"])
+        all_tracks = []
+        for i, track_id in enumerate(res["ids"]):
+            meta = res["metadatas"][i]
+            try:
+                mood_tags = json.loads(meta.get("mood_tags", "[]"))
+            except Exception:
+                mood_tags = []
+            
+            all_tracks.append({
+                "id": track_id,
+                "title": meta.get("track_name", ""),
+                "artist": meta.get("artist", ""),
+                "album": meta.get("album", ""),
+                "genre": meta.get("genre", ""),
+                "release_year": int(meta.get("release_year", 2020)),
+                "popularity": int(meta.get("popularity", 50)),
+                "energy": float(meta.get("energy", 0.5)),
+                "tempo": int(meta.get("tempo_bpm", 120)),
+                "mood_tags": mood_tags,
+                "preview_url": None,
+            })
+            
+        # Build map of song_id -> track dict for listening history lookup
+        tracks_map = {t["id"]: t for t in all_tracks}
+        
+        # Query user's listening history
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT song_id FROM listening_history WHERE user_id = ?", (session_id,))
+        history_rows = cursor.fetchall()
+        conn.close()
+        
+        pref_genre = None
+        pref_mood = None
+        
+        if history_rows:
+            genres = []
+            moods = []
+            for row in history_rows:
+                song_id = row["song_id"]
+                track = tracks_map.get(song_id)
+                if track:
+                    if track["genre"]:
+                        genres.append(track["genre"])
+                    if track["mood_tags"]:
+                        moods.extend(track["mood_tags"])
+                        
+            if genres:
+                pref_genre = max(set(genres), key=genres.count)
+            if moods:
+                pref_mood = max(set(moods), key=moods.count)
+                
+        # Fallbacks
+        if not pref_genre:
+            all_genres = [t["genre"] for t in all_tracks if t["genre"]]
+            if all_genres:
+                pref_genre = max(set(all_genres), key=all_genres.count)
+            else:
+                pref_genre = "Pop"
+                
+        if not pref_mood:
+            pref_mood = "happy"
+            
+        # 1. Latest new songs: sort by release_year desc, then popularity desc
+        latest_sorted = sorted(all_tracks, key=lambda t: (t["release_year"], t["popularity"]), reverse=True)
+        latest_songs = latest_sorted[:limit]
+        
+        # 2. Recommended songs matching preferred genre OR containing preferred mood
+        pref_genre_lower = pref_genre.lower()
+        pref_mood_lower = pref_mood.lower()
+        rec_candidates = []
+        for t in all_tracks:
+            matches_genre = t["genre"].lower() == pref_genre_lower
+            matches_mood = any(m.lower() == pref_mood_lower for m in t["mood_tags"])
+            if matches_genre or matches_mood:
+                rec_candidates.append(t)
+                
+        # Sort by popularity desc
+        rec_candidates.sort(key=lambda t: t["popularity"], reverse=True)
+        
+        # Sample or take top
+        import random
+        if len(rec_candidates) > limit:
+            recommended_songs = random.sample(rec_candidates[:limit*2], limit)
+        else:
+            recommended_songs = rec_candidates
+            
+        return {
+            "recommended": recommended_songs,
+            "latest": latest_songs,
+            "preference": {
+                "genre": pref_genre,
+                "mood": pref_mood
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/api/v1/catalog/taxonomy")
 async def api_catalog_taxonomy():

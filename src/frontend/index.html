@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Review Discovery Engine · Spotify AI-Powered</title>
   <meta name="description" content="Quantify sentiment from App Store, Google Play, Twitter, and Reddit reviews — then ask research questions, or describe the sound you're chasing." />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='10' fill='%231DB954'/%3E%3Cpath d='M7 9C9.5 7.5 14.5 7.5 17 9' stroke='white' stroke-width='2' stroke-linecap='round' fill='none'/%3E%3Cpath d='M6 12.5C8.5 10.8 13.5 10.8 16 12.5' stroke='white' stroke-width='1.6' stroke-linecap='round' fill='none'/%3E%3Cpath d='M6.5 16C8.5 14.5 13.5 14.5 15.5 16' stroke='white' stroke-width='1.2' stroke-linecap='round' fill='none'/%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -30,6 +31,7 @@
         <button class="nav-tab" data-tab="dashboard" onclick="switchTab('dashboard')">Dashboard</button>
         <button class="nav-tab" data-tab="pipeline" onclick="switchTab('pipeline')">Pipeline</button>
         <button class="nav-tab" data-tab="playlists" onclick="switchTab('playlists')">Playlists</button>
+        <button class="nav-tab" data-tab="wanderer" onclick="switchTab('wanderer')">Wanderer</button>
       </div>
     </div>
 
@@ -89,6 +91,47 @@
             <button class="btn-primary" id="searchBtn" onclick="runSearch()">Search</button>
           </div>
           <button class="clear-link" onclick="clearSearch()">CLEAR SEARCH RESULT</button>
+        </div>
+      </div>
+
+      <!-- Browse by Mood Shelf Section -->
+      <div class="mood-shelf-container" id="moodShelfContainer">
+        <h3 class="shelf-title">Browse by Mood</h3>
+        <div class="mood-shelf" id="moodShelf">
+          <!-- Dynamically populated mood pills -->
+        </div>
+      </div>
+
+      <!-- Mood Catalog Detail View (Hidden by default) -->
+      <div class="mood-catalog-view" id="moodCatalogView" style="display: none;">
+        <div class="catalog-header-section" id="catalogHeaderSection">
+          <button class="back-to-discover-btn" onclick="closeMoodCatalog()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5m7 7-7-7 7-7"/></svg>
+            Back to Search
+          </button>
+          <div class="catalog-hero" id="catalogHero">
+            <h2 class="catalog-title" id="catalogTitle">Mood Catalog</h2>
+            <p class="catalog-description" id="catalogDescription">Catalog description goes here.</p>
+          </div>
+          <div class="catalog-controls">
+            <button class="btn-primary" id="playMoodMixBtn" onclick="playMoodMix()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 6px;"><path d="M8 5v14l11-7z"/></svg>
+              Play Mood Mix
+            </button>
+            <div class="personalize-toggle-wrapper">
+              <label class="switch">
+                <input type="checkbox" id="personalizeCatalogToggle" onchange="togglePersonalizeCatalog()" />
+                <span class="slider round"></span>
+              </label>
+              <span class="toggle-label">Personalize mix (boost history)</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="catalog-tracks-section">
+          <div class="tracks-list" id="catalogTracksList">
+            <!-- Dynamic ranked tracks list -->
+          </div>
         </div>
       </div>
 
@@ -380,29 +423,110 @@
 
       <!-- Spotify OAuth Connection Banner -->
       <div class="oauth-banner">
-        <div class="oauth-text">
+        <div class="oauth-text" id="oauthText">
           Connect your <strong>Spotify</strong> account to synchronize playlists directly to your Spotify library.
         </div>
-        <button class="btn-primary sm" onclick="connectSpotify()">Connect Spotify</button>
+        <button class="btn-primary sm" id="connectSpotifyBtn" onclick="connectSpotify()">Connect Spotify</button>
       </div>
 
-      <div class="playlist-builder">
-        <div class="playlist-form">
-          <label class="form-label" for="playlistName">Playlist Name</label>
-          <input type="text" id="playlistName" class="form-input" placeholder="My AI Discovery Playlist" />
+      <div class="playlists-split">
+        <!-- Left: Playlist Builder -->
+        <div class="playlist-builder">
+          <div class="playlist-form">
+            <label class="form-label" for="playlistName">Playlist Name</label>
+            <input type="text" id="playlistName" class="form-input" placeholder="My AI Discovery Playlist" />
+          </div>
+
+          <div style="margin-bottom: 1.5rem;">
+            <label class="form-label">Tracks in Playlist</label>
+            <div class="playlist-tracks" id="playlistTracks">
+              <!-- Dynamic playlist tracks go here -->
+            </div>
+          </div>
+
+          <button class="btn-primary" onclick="createPlaylist()">Sync to Spotify</button>
         </div>
 
-        <div style="margin-bottom: 1.5rem;">
-          <label class="form-label">Tracks in Playlist</label>
-          <div class="playlist-tracks" id="playlistTracks">
-            <!-- Dynamic playlist tracks go here -->
+        <!-- Right: Suggestions and Recommendations -->
+        <div class="playlist-suggestions-container">
+          <!-- Recommended Songs Section -->
+          <div class="playlist-suggestions-section">
+            <div class="section-header">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+              <span id="playlist-recommendations-title">Recommended Songs</span>
+            </div>
+            <div class="tracks-list" id="playlistTabRecommendedTracks">
+              <div style="font-size: 0.85rem; color: var(--text-muted);">Loading recommendations...</div>
+            </div>
+          </div>
+
+          <!-- Latest New Songs Section -->
+          <div class="playlist-suggestions-section">
+            <div class="section-header">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+              <span>Latest Additions</span>
+            </div>
+            <div class="tracks-list" id="playlistTabLatestTracks">
+              <div style="font-size: 0.85rem; color: var(--text-muted);">Loading latest new songs...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section><!-- /tab-playlists -->
+
+    <!-- ── TAB: WANDERER ──────────────────────── -->
+    <section class="tab-panel" id="tab-wanderer">
+      <div class="page-header">
+        <h2 class="page-title">Wanderer Assistant</h2>
+        <span class="bubble-breaking-badge">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 4px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 14.14 14.14"/></svg>
+          Bubble-Breaking Mode Active
+        </span>
+      </div>
+
+      <div class="wanderer-split">
+        <!-- Left: Conversational Agent Chat -->
+        <div class="wanderer-chat-container">
+          <div class="wanderer-chat-header">
+            <svg class="sparkle-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" style="margin-right: 6px;">
+              <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" fill="#1DB954"/>
+            </svg>
+            <span>Conversational Agent</span>
+          </div>
+          <div class="wanderer-chat-history" id="wandererChatHistory">
+            <div class="chat-message assistant">
+              <p>Welcome to <strong>Wanderer Mode</strong>! 🌌</p>
+              <p>This space is dedicated to exploring new music while breaking recommendation loops. I will automatically exclude any songs in your listening history so everything you see is fresh.</p>
+              <p>Describe the sound or vibe you want, or try steering me with comments like <em>"too safe"</em>, <em>"keep this mood"</em>, or <em>"why this?"</em>.</p>
+            </div>
+          </div>
+          <div class="wanderer-chat-input-wrapper">
+            <textarea
+              id="wandererQueryInput"
+              class="wanderer-query-input"
+              rows="2"
+              placeholder="Describe the vibe, or type natural language adjustments (e.g. 'too safe', 'keep this mood')..."
+              onkeydown="handleWandererKey(event)"
+            ></textarea>
+            <button class="btn-primary" id="wandererSendBtn" onclick="runWandererSearch()">Send</button>
           </div>
         </div>
 
-        <button class="btn-primary" onclick="createPlaylist()">Sync to Spotify</button>
+        <!-- Right: Recommended Songs -->
+        <div class="wanderer-recommendations-container">
+          <div class="section-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+            <span>Wanderer Recommendations</span>
+          </div>
+          <div class="tracks-list" id="wandererTracksList">
+            <div class="no-tracks-placeholder">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 0.75rem; opacity: 0.5;"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+              <p>Type a message in the conversational agent to generate recommendations.</p>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
-
 
   </main>
 
@@ -450,6 +574,82 @@
           </div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       SPOTIFY LOGIN MODAL
+  ═══════════════════════════════════════════ -->
+  <div class="modal-overlay" id="spotifyLoginModal" style="display:none;" onclick="closeSpotifyLoginModal(event)">
+    <div class="modal-content spotify-login-modal" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeSpotifyLoginModal()" style="position:absolute;top:1rem;right:1rem;">&times;</button>
+
+      <!-- Spotify brand header -->
+      <div class="spotify-login-header">
+        <div class="spotify-login-logo">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="#1DB954">
+            <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+          </svg>
+        </div>
+        <h3 class="spotify-login-title">Connect Spotify to Sync</h3>
+        <p class="spotify-login-subtitle">Link your Spotify account to add this playlist directly to your library — no copy-paste needed.</p>
+      </div>
+
+      <!-- Benefits list -->
+      <ul class="spotify-login-benefits">
+        <li><span class="benefit-icon">✓</span> One-click sync to your Spotify library</li>
+        <li><span class="benefit-icon">✓</span> Playlist available on all your Spotify devices</li>
+        <li><span class="benefit-icon">✓</span> Full song playback via Spotify</li>
+      </ul>
+
+      <!-- Pending playlist info -->
+      <div class="spotify-login-pending" id="spotifyLoginPendingInfo" style="display:none;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        <span id="spotifyLoginPendingText">Playlist will be synced after login.</span>
+      </div>
+
+      <div class="spotify-login-actions">
+        <button class="btn-spotify-connect" id="spotifyConnectAndSyncBtn" onclick="connectAndSync()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="#111" style="margin-right:8px;">
+            <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+          </svg>
+          Connect Spotify &amp; Sync Playlist
+        </button>
+        <button class="btn-secondary sm" onclick="closeSpotifyLoginModal()" style="width:100%;justify-content:center;">Maybe later</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       FLOATING SPOTIFY MUSIC PLAYER
+  ═══════════════════════════════════════════ -->
+  <div id="spotifyPlayerOverlay" class="spotify-player-overlay" style="display:none;">
+    <div class="spotify-player-header">
+      <div class="spotify-player-track-info">
+        <span class="spotify-player-label">▶ Now Playing (Spotify)</span>
+        <span class="spotify-player-title" id="spotifyPlayerTitle">—</span>
+      </div>
+      <div class="spotify-player-controls">
+        <button class="spotify-player-btn" onclick="openSpotifyExternal()" title="Open in Spotify">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </button>
+        <button class="spotify-player-btn close" onclick="closeSpotifyPlayer()" title="Close player">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="spotify-player-frame-container">
+      <iframe
+        id="spotifyPlayerFrame"
+        class="spotify-player-frame"
+        frameborder="0"
+        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+        allowfullscreen
+        src=""
+      ></iframe>
+    </div>
+    <div class="spotify-player-footer">
+      <span class="spotify-player-note">Full song via Spotify · <a href="#" id="spotifyOpenExternalLink" onclick="openSpotifyExternal(); return false;" style="color:var(--green)">Open on Spotify ↗</a></span>
     </div>
   </div>
 

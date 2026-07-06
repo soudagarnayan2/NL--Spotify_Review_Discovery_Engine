@@ -1,0 +1,98 @@
+{
+  "happy": {
+    "name": "Happy / Upbeat",
+    "description": "Bright, uplifting, and high-tempo tracks to boost your spirit",
+    "valence_range": [0.55, 1.0],
+    "energy_range": [0.6, 1.0],
+    "tempo_range": [120, 250],
+    "danceability_range": [0.4, 1.0],
+    "acousticness_range": [0.0, 1.0],
+    "instrumentalness_range": [0.0, 1.0],
+    "gradient": "linear-gradient(135deg, #FFD000 0%, #FF8C00 100%)",
+    "text_color": "#000000"
+  },
+  "chill": {
+    "name": "Chill / Relaxed",
+    "description": "Smooth, low-energy tunes for winding down and relaxing",
+    "valence_range": [0.3, 0.7],
+    "energy_range": [0.0, 0.45],
+    "tempo_range": [65, 110],
+    "danceability_range": [0.0, 1.0],
+    "acousticness_range": [0.0, 1.0],
+    "instrumentalness_range": [0.0, 1.0],
+    "gradient": "linear-gradient(135deg, #00C6FF 0%, #0072FF 100%)",
+    "text_color": "#ffffff"
+  },
+  "sad": {
+    "name": "Sad / Melancholic",
+    "description": "Somber melodies and reflective acoustic sounds for deep emotions",
+    "valence_range": [0.0, 0.4],
+    "energy_range": [0.0, 0.4],
+    "tempo_range": [40, 115],
+    "danceability_range": [0.0, 1.0],
+    "acousticness_range": [0.0, 1.0],
+    "instrumentalness_range": [0.0, 1.0],
+    "gradient": "linear-gradient(135deg, #4A00E0 0%, #8E2DE2 100%)",
+    "text_color": "#ffffff"
+  },
+  "workout": {
+    "name": "Energetic / Workout",
+    "description": "Driving beats and high energy to fuel your training sessions",
+    "valence_range": [0.3, 1.0],
+    "energy_range": [0.7, 1.0],
+    "tempo_range": [125, 250],
+    "danceability_range": [0.5, 1.0],
+    "acousticness_range": [0.0, 0.5],
+    "instrumentalness_range": [0.0, 1.0],
+    "gradient": "linear-gradient(135deg, #FF416C 0%, #FF4B2B 100%)",
+    "text_color": "#ffffff"
+  },
+  "focus": {
+    "name": "Focus / Study",
+    "description": "Introspective, low-lyric, and ambient soundscapes for concentration",
+    "valence_range": [0.1, 0.8],
+    "energy_range": [0.0, 0.4],
+    "tempo_range": [50, 125],
+    "danceability_range": [0.0, 0.8],
+    "acousticness_range": [0.0, 1.0],
+    "instrumentalness_range": [0.35, 1.0],
+    "gradient": "linear-gradient(135deg, #11998E 0%, #38EF7D 100%)",
+    "text_color": "#000000"
+  },
+  "romantic": {
+    "name": "Romantic",
+    "description": "Gentle, warm, and intimate tunes for close moments",
+    "valence_range": [0.4, 0.85],
+    "energy_range": [0.15, 0.55],
+    "tempo_range": [60, 120],
+    "danceability_range": [0.3, 0.8],
+    "acousticness_range": [0.3, 1.0],
+    "instrumentalness_range": [0.0, 1.0],
+    "gradient": "linear-gradient(135deg, #FF007F 0%, #FF85A2 100%)",
+    "text_color": "#ffffff"
+  },
+  "intense": {
+    "name": "Angry / Intense",
+    "description": "Aggressive rhythms and low-valence energy to vent tension",
+    "valence_range": [0.0, 0.45],
+    "energy_range": [0.75, 1.0],
+    "tempo_range": [95, 250],
+    "danceability_range": [0.0, 1.0],
+    "acousticness_range": [0.0, 0.35],
+    "instrumentalness_range": [0.0, 1.0],
+    "gradient": "linear-gradient(135deg, #870000 0%, #190A05 100%)",
+    "text_color": "#ffffff"
+  },
+  "nostalgic": {
+    "name": "Nostalgic",
+    "description": "Retro vibes and classic memories from past decades",
+    "valence_range": [0.0, 1.0],
+    "energy_range": [0.0, 1.0],
+    "tempo_range": [0, 250],
+    "danceability_range": [0.0, 1.0],
+    "acousticness_range": [0.0, 1.0],
+    "instrumentalness_range": [0.0, 1.0],
+    "gradient": "linear-gradient(135deg, #F12711 0%, #F5AF19 100%)",
+    "text_color": "#ffffff"
+  }
+}

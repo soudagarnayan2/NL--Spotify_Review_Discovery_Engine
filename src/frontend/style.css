@@ -905,12 +905,50 @@ body {
 .oauth-text { flex: 1; font-size: 0.88rem; color: var(--text); }
 .oauth-text strong { color: var(--green); }
 
+.playlists-split {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .playlists-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+.playlist-suggestions-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.playlist-suggestions-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+}
+
+.btn-primary.connected {
+  background: var(--green-dim);
+  color: var(--green);
+  border: 1px solid rgba(29, 185, 84, 0.4);
+  cursor: default;
+  pointer-events: none;
+}
+.btn-primary.connected:hover {
+  background: var(--green-dim);
+  box-shadow: none;
+  transform: none;
+}
+
 .playlist-builder {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 2rem;
-  max-width: 600px;
+  width: 100%;
 }
 
 .form-label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.06em; }
@@ -1535,3 +1573,767 @@ body {
     padding: 1.15rem 1rem;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   MOOD CATALOG & BROWSE BY MOOD STYLES
+   ═══════════════════════════════════════════════════════════ */
+
+.mood-shelf-container {
+  margin: 2rem 0;
+  padding: 0 0.5rem;
+}
+
+.shelf-title {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 1rem;
+}
+
+.mood-shelf {
+  display: flex;
+  gap: 1.25rem;
+  overflow-x: auto;
+  padding: 0.5rem 0.25rem 1.25rem 0.25rem;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface-2) transparent;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mood-shelf::-webkit-scrollbar {
+  height: 6px;
+}
+.mood-shelf::-webkit-scrollbar-track {
+  background: transparent;
+}
+.mood-shelf::-webkit-scrollbar-thumb {
+  background: var(--surface-2);
+  border-radius: var(--radius-pill);
+}
+.mood-shelf::-webkit-scrollbar-thumb:hover {
+  background: var(--green);
+}
+
+.mood-pill {
+  flex: 0 0 auto;
+  min-width: 140px;
+  height: 90px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 1.15rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.mood-pill::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.15);
+  transition: opacity var(--transition);
+}
+
+.mood-pill:hover::before {
+  background: rgba(0, 0, 0, 0);
+}
+
+.mood-pill:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 8px 20px rgba(29, 185, 84, 0.15);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.mood-pill-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  position: relative;
+  z-index: 2;
+  letter-spacing: -0.01em;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Mood Catalog Detail Page */
+.mood-catalog-view {
+  animation: fadeIn 0.3s ease;
+  margin-top: 2rem;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.catalog-header-section {
+  padding: 2.5rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  margin-bottom: 2rem;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+}
+
+.back-to-discover-btn {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius-pill);
+  padding: 0.5rem 1.15rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all var(--transition);
+  margin-bottom: 2rem;
+  backdrop-filter: blur(8px);
+}
+
+.back-to-discover-btn:hover {
+  background: var(--surface-2);
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.catalog-hero {
+  margin-bottom: 1.75rem;
+  position: relative;
+  z-index: 2;
+}
+
+.catalog-title {
+  font-family: var(--font-serif);
+  font-size: 2.75rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin-bottom: 0.5rem;
+  text-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+}
+
+.catalog-description {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.85);
+  max-width: 600px;
+  line-height: 1.5;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.catalog-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2rem;
+  margin-top: 1.5rem;
+  position: relative;
+  z-index: 2;
+}
+
+.personalize-toggle-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(8px);
+}
+
+.toggle-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Switch Toggle Styling */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--bg-3);
+  transition: .4s;
+  border: 1px solid var(--border);
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background-color: var(--text-muted);
+  transition: .4s;
+}
+
+input:checked + .slider {
+  background-color: var(--green-dim);
+  border-color: var(--green);
+}
+
+input:checked + .slider:before {
+  transform: translateX(20px);
+  background-color: var(--green);
+}
+
+.slider.round {
+  border-radius: 34px;
+}
+
+.slider.round:before {
+  border-radius: 50%;
+}
+
+.catalog-tracks-section {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  padding: 1.5rem 2rem;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+/* Track Card Feedback Controls */
+.track-feedback-controls {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  margin-left: 0.5rem;
+}
+
+.dislike-track-btn {
+  background: none;
+  border: 1px solid transparent;
+  color: var(--text-dim);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+}
+
+.dislike-track-btn:hover {
+  color: var(--danger);
+  border-color: rgba(231, 76, 60, 0.2);
+  background: rgba(231, 76, 60, 0.05);
+}
+
+.dislike-track-btn.active {
+  color: var(--danger);
+  background: rgba(231, 76, 60, 0.15);
+  border-color: var(--danger);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   WANDERER TAB
+   ═══════════════════════════════════════════════════════════ */
+.bubble-breaking-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--green-dim);
+  color: var(--green);
+  border: 1px solid var(--green);
+  border-radius: var(--radius-pill);
+  padding: 0.3rem 0.8rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  box-shadow: 0 0 10px var(--green-glow);
+}
+
+.wanderer-split {
+  display: grid;
+  grid-template-columns: 450px 1fr;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .wanderer-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Chat container styling */
+.wanderer-chat-container {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  height: 600px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+
+.wanderer-chat-header {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-3);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+
+.wanderer-chat-history {
+  flex: 1;
+  padding: 1rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Chat message bubbles */
+.chat-message {
+  max-width: 85%;
+  padding: 0.85rem 1.1rem;
+  border-radius: var(--radius);
+  line-height: 1.45;
+  font-size: 0.9rem;
+  animation: fadeIn 0.25s ease-in-out;
+}
+
+.chat-message.user {
+  align-self: flex-end;
+  background: linear-gradient(135deg, var(--green), #1aa34a);
+  color: #111;
+  font-weight: 550;
+  border-bottom-right-radius: 2px;
+  box-shadow: 0 4px 12px rgba(29, 185, 84, 0.2);
+}
+
+.chat-message.assistant {
+  align-self: flex-start;
+  background: var(--surface-2);
+  color: var(--text);
+  border-bottom-left-radius: 2px;
+  border: 1px solid var(--border);
+}
+
+.chat-message p {
+  margin-bottom: 0.5rem;
+}
+.chat-message p:last-child {
+  margin-bottom: 0;
+}
+.chat-message em {
+  font-style: italic;
+  opacity: 0.9;
+}
+.chat-message strong {
+  font-weight: 600;
+}
+
+/* Input Area */
+.wanderer-chat-input-wrapper {
+  padding: 1rem;
+  border-top: 1px solid var(--border);
+  background: var(--bg-2);
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.wanderer-query-input {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: 0.75rem 1rem;
+  outline: none;
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  resize: none;
+  transition: border-color var(--transition);
+}
+
+.wanderer-query-input:focus {
+  border-color: var(--green);
+}
+
+/* Recommendations panel */
+.wanderer-recommendations-container {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  min-height: 600px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+
+.no-tracks-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  text-align: center;
+  color: var(--text-muted);
+  padding: 3rem 1.5rem;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  margin-top: 1rem;
+}
+
+/* "Why this pick" styling on track cards */
+.track-reason-block {
+  margin-top: 0.6rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-2);
+  border-left: 2px solid var(--green);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+  font-style: italic;
+}
+
+.track-reason-label {
+  font-weight: 700;
+  color: var(--green);
+  text-transform: uppercase;
+  font-size: 0.65rem;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.2rem;
+  display: block;
+}
+
+/* Typing indicator anim */
+.typing-indicator {
+  display: flex;
+  gap: 4px;
+  padding: 0.25rem 0.15rem;
+}
+
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--text-muted);
+  border-radius: 50%;
+  animation: typingBounce 1.4s infinite ease-in-out;
+}
+
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typingBounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1.2); opacity: 1; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SPOTIFY LOGIN MODAL
+   ═══════════════════════════════════════════════════════════ */
+.spotify-login-modal {
+  max-width: 440px;
+  padding: 2rem;
+  position: relative;
+  text-align: center;
+}
+
+.spotify-login-header {
+  margin-bottom: 1.5rem;
+}
+
+.spotify-login-logo {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.spotify-login-logo svg {
+  filter: drop-shadow(0 0 16px rgba(29, 185, 84, 0.4));
+}
+
+.spotify-login-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 0.5rem;
+}
+
+.spotify-login-subtitle {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.spotify-login-benefits {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.5rem;
+  text-align: left;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+}
+
+.spotify-login-benefits li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.875rem;
+  color: var(--text);
+  padding: 0.35rem 0;
+}
+
+.benefit-icon {
+  color: var(--green);
+  font-weight: 700;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.spotify-login-pending {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(29, 185, 84, 0.08);
+  border: 1px solid rgba(29, 185, 84, 0.25);
+  border-radius: var(--radius);
+  padding: 0.6rem 1rem;
+  font-size: 0.8rem;
+  color: var(--green);
+  margin-bottom: 1.25rem;
+  text-align: left;
+}
+
+.spotify-login-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.btn-spotify-connect {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  background: var(--green);
+  color: #111;
+  border: none;
+  border-radius: var(--radius);
+  padding: 0.9rem 1.5rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition);
+  box-shadow: 0 4px 16px rgba(29, 185, 84, 0.3);
+}
+
+.btn-spotify-connect:hover {
+  background: #1ed760;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(29, 185, 84, 0.45);
+}
+
+.btn-spotify-connect:active {
+  transform: translateY(0);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FLOATING SPOTIFY MUSIC PLAYER
+   ═══════════════════════════════════════════════════════════ */
+.spotify-player-overlay {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+  z-index: 9999;
+  overflow: hidden;
+  animation: slideUpIn 0.3s ease-out;
+}
+
+@keyframes slideUpIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.spotify-player-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: var(--bg-3);
+  border-bottom: 1px solid var(--border);
+  gap: 0.5rem;
+}
+
+.spotify-player-track-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.spotify-player-label {
+  font-size: 0.65rem;
+  color: var(--green);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.spotify-player-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.spotify-player-controls {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.spotify-player-btn {
+  background: none;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+}
+
+.spotify-player-btn:hover {
+  color: var(--text);
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+
+.spotify-player-btn.close:hover {
+  color: var(--danger);
+  border-color: rgba(231, 76, 60, 0.3);
+}
+
+.spotify-player-frame-container {
+  position: relative;
+  width: 100%;
+  height: 352px;
+  background: #000;
+}
+
+.spotify-player-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+
+.spotify-player-footer {
+  padding: 0.5rem 1rem;
+  background: var(--bg-2);
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+
+.spotify-player-note {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+/* Resize handle for floating player — mouse drag */
+@media (max-width: 480px) {
+  .spotify-player-overlay {
+    width: calc(100vw - 2rem);
+    right: 1rem;
+    bottom: 1rem;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ACTIVE PLAYING TRACK CARD & EQUALIZER ANIMATION
+   ═══════════════════════════════════════════════════════════ */
+.track-card.active-playing,
+.playlist-track-item.active-playing {
+  border-color: var(--green) !important;
+  border-left: 4px solid var(--green) !important;
+  box-shadow: 0 0 16px rgba(29, 185, 84, 0.15);
+  background: rgba(29, 185, 84, 0.03) !important;
+  transform: translateX(4px);
+}
+
+.equalizer-icon {
+  display: inline-flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  width: 13px;
+  height: 12px;
+}
+
+.equalizer-bar {
+  width: 2px;
+  height: 100%;
+  background-color: #fff;
+  border-radius: 1px;
+  transform-origin: bottom;
+  animation: bounceEqualizer 0.8s ease-in-out infinite alternate;
+}
+
+.equalizer-bar:nth-child(2) { animation-delay: 0.15s; animation-duration: 0.6s; }
+.equalizer-bar:nth-child(3) { animation-delay: 0.3s; animation-duration: 0.9s; }
+.equalizer-bar:nth-child(4) { animation-delay: 0.45s; animation-duration: 0.7s; }
+
+@keyframes bounceEqualizer {
+  0% { transform: scaleY(0.15); }
+  100% { transform: scaleY(1.0); }
+}
+
+.play-track-btn.playing:hover {
+  content: '⏸';
+}
+

@@ -4696,6 +4696,76 @@ def seed_chroma():
     print(f"Genres covered: {sorted(list(set(t['genre'] for t in TRACK_CATALOG)))}")
     print(f"Artists: {len(set(t['artist'] for t in TRACK_CATALOG))} unique")
 
+    # Seed SQLite
+    import sqlite3
+    import random
+    
+    db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "data", "reviews.db"))
+    print(f"Seeding tracks in SQLite at: {db_path}")
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    # Add project root to sys.path to ensure src is importable
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+        
+    from src.backend.mood_service import init_mood_tables, rebuild_mood_catalogs
+    init_mood_tables()
+    
+    for track in TRACK_CATALOG:
+        t_id = track["id"]
+        title = track["track_name"]
+        artist = track["artist"]
+        album = track.get("album", "")
+        
+        # Audio features
+        valence = float(track["valence"])
+        energy = float(track["energy"])
+        tempo = float(track["tempo_bpm"])
+        acousticness = float(track["acousticness"])
+        instrumentalness = float(track["instrumentalness"])
+        
+        # Generate danceability & duration_ms
+        genre_lower = track["genre"].lower()
+        if any(g in genre_lower for g in ["electronic", "dance", "edm", "house", "hip-hop", "hip hop", "rap", "latin", "reggaeton", "pop", "synthwave", "synthpop"]):
+            danceability = round(random.uniform(0.55, 0.90), 3)
+        elif any(g in genre_lower for g in ["ambient", "classical", "meditation", "lofi", "lo-fi", "acoustic", "folk"]):
+            danceability = round(random.uniform(0.15, 0.50), 3)
+        else:
+            danceability = round(random.uniform(0.35, 0.75), 3)
+            
+        duration_ms = random.randint(140000, 320000)
+        popularity = track.get("popularity", 50)
+        release_year = track.get("release_year", 2020)
+        description = track.get("description", "")
+        
+        cursor.execute("""
+        INSERT INTO songs (
+            id, title, artist, album, duration_ms, valence, energy, tempo,
+            danceability, acousticness, instrumentalness, mood_tags, mood_confidence,
+            popularity, release_year, description, last_tagged_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+            title=excluded.title, artist=excluded.artist, album=excluded.album,
+            valence=excluded.valence, energy=excluded.energy, tempo=excluded.tempo,
+            danceability=excluded.danceability, acousticness=excluded.acousticness,
+            instrumentalness=excluded.instrumentalness, description=excluded.description,
+            popularity=excluded.popularity, release_year=excluded.release_year
+        """, (
+            t_id, title, artist, album, duration_ms, valence, energy, tempo,
+            danceability, acousticness, instrumentalness, "[]", "{}",
+            popularity, release_year, description, None
+        ))
+        
+    conn.commit()
+    print(f"Successfully seeded {len(TRACK_CATALOG)} tracks in SQLite")
+    
+    # Run rebuild to compute tags, confidence, and generate catalogs
+    print("Running mood classifier and building catalogs...")
+    rebuild_mood_catalogs(conn)
+    conn.close()
+
     # Quick verification
     result = collection.query(query_texts=["upbeat synthwave for driving at night"], n_results=3)
     print("\nVerification query: 'upbeat synthwave for driving at night'")

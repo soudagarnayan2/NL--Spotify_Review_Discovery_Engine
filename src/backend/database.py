@@ -41,6 +41,73 @@ def init_db():
     )
     """)
     
+    # Create songs table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS songs (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        artist TEXT NOT NULL,
+        album TEXT,
+        duration_ms INTEGER,
+        valence REAL,
+        energy REAL,
+        tempo REAL,
+        danceability REAL,
+        acousticness REAL,
+        instrumentalness REAL,
+        mood_tags TEXT,
+        mood_confidence TEXT,
+        popularity INTEGER DEFAULT 50,
+        release_year INTEGER,
+        description TEXT,
+        last_tagged_at TEXT
+    )
+    """)
+
+    # Create mood_catalogs table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS mood_catalogs (
+        mood TEXT PRIMARY KEY,
+        songs TEXT,
+        refresh_frequency TEXT,
+        personalization_enabled INTEGER
+    )
+    """)
+
+    # Create user_feedback table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS user_feedback (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        song_id TEXT NOT NULL,
+        mood TEXT NOT NULL,
+        feedback_type TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (song_id) REFERENCES songs (id) ON DELETE CASCADE
+    )
+    """)
+
+    # Create listening_history table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS listening_history (
+        user_id TEXT NOT NULL,
+        song_id TEXT NOT NULL,
+        play_count INTEGER DEFAULT 1,
+        last_played_at TEXT,
+        PRIMARY KEY (user_id, song_id),
+        FOREIGN KEY (song_id) REFERENCES songs (id) ON DELETE CASCADE
+    )
+    """)
+
+    # Persist Spotify OAuth tokens per browser session
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS spotify_sessions (
+        session_id TEXT PRIMARY KEY,
+        token_json TEXT NOT NULL,
+        display_name TEXT,
+        updated_at TEXT NOT NULL
+    )
+    """)
+    
     conn.commit()
     conn.close()
     print("Database tables initialized successfully.")

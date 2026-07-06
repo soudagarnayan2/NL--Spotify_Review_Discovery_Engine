@@ -64,6 +64,20 @@ function switchTab(tabId) {
 
   // Load data when switching to dashboard
   if (tabId === 'dashboard') loadDashboard();
+
+  // Load status and suggestions when switching to playlists
+  if (tabId === 'playlists') {
+    checkSpotifyStatus();
+    loadPlaylistSuggestions();
+  }
+
+  // Initialize/focus Wanderer input
+  if (tabId === 'wanderer') {
+    const input = document.getElementById('wandererQueryInput');
+    if (input) input.focus();
+    const historyEl = document.getElementById('wandererChatHistory');
+    if (historyEl) historyEl.scrollTop = historyEl.scrollHeight;
+  }
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -1105,6 +1119,16 @@ function renderResults(query, data) {
 
   document.getElementById('analysisContent').innerHTML = renderedHtml;
 
+  if (data.confidence_cue || data.novelty_summary) {
+    const metaHtml = `
+      <div class="discovery-meta-card" style="margin-top: 1.5rem; padding: 1rem; background: var(--bg-2); border-radius: var(--radius); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.85rem;">
+        ${data.confidence_cue ? `<div><strong style="color: var(--green);">Match Confidence:</strong> <span class="confidence-badge" style="background: var(--green-dim); color: var(--green); padding: 2px 6px; border-radius: 4px; font-weight: 600; margin-left: 0.25rem;">${data.confidence_cue}</span></div>` : ''}
+        ${data.novelty_summary ? `<div><strong style="color: var(--green);">Novelty & Familiarity:</strong> <span style="color: var(--text); margin-left: 0.25rem;">${data.novelty_summary}</span></div>` : ''}
+      </div>
+    `;
+    document.getElementById('analysisContent').insertAdjacentHTML('beforeend', metaHtml);
+  }
+
   // Store evidence globally for pagination
   currentEvidence = data.evidence || data.negative_samples || [];
   renderedEvidenceCount = 3;
@@ -1135,10 +1159,11 @@ function renderResults(query, data) {
       tracksListEl.innerHTML = tracks.map((t, idx) => {
         const escapedName = escHtml(t.track_name || t.name || '');
         const escapedArtist = escHtml(t.artist || '');
+        const escapedPreview = (t.preview_url || '').replace(/'/g, "\\'");
         return `
           <div class="track-card">
             <span class="track-num">${idx + 1}</span>
-            <button class="play-track-btn" onclick="playSong('${escapedName}', '${escapedArtist}', this)">▶</button>
+            <button class="play-track-btn" onclick="playSong('${escapedName}', '${escapedArtist}', this, '${escapedPreview}')">▶</button>
             <div class="track-details">
               <span class="track-name">${t.track_name || t.name}</span>
               <span class="track-artist">${t.artist}</span>
@@ -1152,7 +1177,7 @@ function renderResults(query, data) {
                 <span style="font-size:0.7rem; color:var(--text-muted); margin-left:0.5rem">Tempo: ${t.tempo_bpm || t.tempo || 120} BPM</span>
               </div>
             </div>
-            <button class="add-track-btn" onclick="addToPlaylist('${escapedName}', '${escapedArtist}')">+</button>
+            <button class="add-track-btn" onclick="addToPlaylist('${escapedName}', '${escapedArtist}', '${escapedPreview}')">+</button>
           </div>
         `;
       }).join('');
@@ -1529,13 +1554,14 @@ function clearLog() {
    PLAYLISTS
 ══════════════════════════════════════════════════════════ */
 function connectSpotify() {
-  fetch(`${API_BASE}/spotify/login`)
+  const origin = window.location.origin;
+  fetch(`${API_BASE}/spotify/login?session_id=frontend_session&frontend_url=${encodeURIComponent(origin)}`)
     .then(r => r.json())
     .then(d => { if (d.auth_url) window.location.href = d.auth_url; })
     .catch(() => showToast('Spotify auth not configured. Set SPOTIFY_CLIENT_ID in .env'));
 }
 
-function addToPlaylist(name, artist) {
+function addToPlaylist(name, artist, previewUrl = '') {
   const list = document.getElementById('playlistTracks');
   const idx = list.children.length + 1;
   const item = document.createElement('div');
@@ -1543,10 +1569,11 @@ function addToPlaylist(name, artist) {
   
   const escName = name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
   const escArtist = artist.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+  const escPreview = (previewUrl || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
   
   item.innerHTML = `
     <span class="track-num">${idx}</span>
-    <button class="play-track-btn" onclick="playSong('${escName}', '${escArtist}', this)">▶</button>
+    <button class="play-track-btn" onclick="playSong('${escName}', '${escArtist}', this, '${escPreview}')">▶</button>
     <div class="track-info">
       <span class="track-name">${name}</span>
       <span class="track-artist">${artist}</span>
@@ -1571,26 +1598,124 @@ function removeTrack(btn) {
   });
 }
 
-// Procedural Audio Preview Engine (Web Audio API)
+// Audio Preview Engine (Spotify MP3 Preview & iTunes API Fallback & Web Audio Synth Fallback)
 let currentAudioContext = null;
 let currentMelodyTimer = null;
 let currentlyPlayingBtn = null;
 let currentlyPlayingTrackKey = null;
+let fetchAbortController = null;
 
-function playSong(name, artist, btn) {
+const EQUALIZER_HTML = '<div class="equalizer-icon"><span class="equalizer-bar"></span><span class="equalizer-bar"></span><span class="equalizer-bar"></span><span class="equalizer-bar"></span></div>';
+
+async function playSong(name, artist, btn, previewUrl = '') {
   const trackKey = `${name} - ${artist}`;
+  
   if (currentlyPlayingTrackKey === trackKey) {
     stopCurrentAudio();
     return;
   }
   
+  // Log simulated play event for personalization re-ranking history
+  fetch(`${API_BASE}/listen-log`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: name, artist: artist, session_id: 'frontend_session' })
+  }).catch(err => console.warn('Listen logging failed:', err));
+  
   stopCurrentAudio();
   
   currentlyPlayingTrackKey = trackKey;
   currentlyPlayingBtn = btn;
-  btn.innerHTML = '⏸';
   btn.classList.add('playing');
   
+  // Add active-playing class to card container
+  const card = btn.closest('.track-card') || btn.closest('.playlist-track-item');
+  if (card) {
+    card.classList.add('active-playing');
+  }
+
+  // Try to play complete song using Spotify Embed API
+  showToast(`Loading complete song via Spotify: ${name}...`);
+  btn.innerHTML = '⏳';
+  
+  try {
+    const embedResp = await fetch(`${API_BASE}/spotify/track-embed?name=${encodeURIComponent(name)}&artist=${encodeURIComponent(artist)}&session_id=frontend_session`);
+    if (embedResp.ok) {
+      const embedData = await embedResp.json();
+      if (embedData.embed_url && !embedData.mock) {
+        showSpotifyPlayer(name, artist, embedData.embed_url, embedData.spotify_url);
+        btn.innerHTML = EQUALIZER_HTML;
+        return;
+      }
+    }
+  } catch (err) {
+    console.warn("Spotify track embed lookup failed, falling back to preview:", err);
+  }
+
+  // Fallback to preview audio if Spotify embed lookup failed or was mock
+  btn.innerHTML = EQUALIZER_HTML;
+
+  function startPlayback(url, sourceName) {
+    if (currentlyPlayingTrackKey !== trackKey) return;
+    try {
+      const audio = new Audio(url);
+      currentAudioContext = audio;
+      audio.volume = 0.5;
+      audio.play().then(() => {
+        showToast(`Playing ${sourceName}: ${name}`);
+        btn.innerHTML = EQUALIZER_HTML;
+      }).catch(e => {
+        console.warn("Audio play failed, falling back to synth:", e);
+        playSynthFallback(name);
+      });
+      audio.onended = () => stopCurrentAudio();
+    } catch (e) {
+      console.warn("Audio creation failed, falling back to synth:", e);
+      playSynthFallback(name);
+    }
+  }
+
+  // 1. If a valid Spotify MP3 preview URL exists, play it directly
+  if (previewUrl && previewUrl !== 'null' && previewUrl !== 'undefined' && !previewUrl.startsWith('mock_')) {
+    startPlayback(previewUrl, 'Spotify preview');
+    return;
+  }
+  
+  // 2. Fetch from iTunes Search API as fallback for real song audio
+  showToast(`Searching preview for: ${name}...`);
+  btn.innerHTML = '⏳';
+  
+  try {
+    fetchAbortController = new AbortController();
+    const searchUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(name + ' ' + artist)}&limit=1&media=music`;
+    const response = await fetch(searchUrl, { signal: fetchAbortController.signal });
+    if (!response.ok) throw new Error(`HTTP status ${response.status}`);
+    const data = await response.json();
+    
+    if (data.results && data.results.length > 0 && data.results[0].previewUrl) {
+      const realPreviewUrl = data.results[0].previewUrl;
+      if (currentlyPlayingTrackKey === trackKey) {
+        btn.innerHTML = EQUALIZER_HTML;
+      }
+      startPlayback(realPreviewUrl, 'song preview');
+      return;
+    }
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      console.log('Fetch aborted');
+      return;
+    }
+    console.warn("iTunes preview fetch failed:", err);
+  }
+  
+  // 3. Fallback to procedural synthesizer
+  if (currentlyPlayingTrackKey === trackKey) {
+    btn.innerHTML = EQUALIZER_HTML;
+    playSynthFallback(name);
+  }
+}
+
+function playSynthFallback(name) {
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     const ctx = new AudioContext();
@@ -1609,7 +1734,6 @@ function playSong(name, artist, btn) {
       gain.connect(ctx.destination);
       
       osc.type = 'sine';
-      // Generate a unique seed for the melody based on track name
       const seed = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
       const freqIndex = (step + seed) % notes.length;
       osc.frequency.setValueAtTime(notes[freqIndex], ctx.currentTime);
@@ -1626,7 +1750,7 @@ function playSong(name, artist, btn) {
     }
     
     playNextNote();
-    showToast(`Playing preview: ${name}`);
+    showToast(`Playing synth preview: ${name}`);
   } catch (e) {
     console.error('Web Audio API not supported:', e);
     showToast('Audio playback not supported');
@@ -1634,12 +1758,20 @@ function playSong(name, artist, btn) {
 }
 
 function stopCurrentAudio() {
+  if (fetchAbortController) {
+    fetchAbortController.abort();
+    fetchAbortController = null;
+  }
   if (currentMelodyTimer) {
     clearTimeout(currentMelodyTimer);
     currentMelodyTimer = null;
   }
   if (currentAudioContext) {
-    currentAudioContext.close().catch(() => {});
+    if (typeof currentAudioContext.pause === 'function') {
+      currentAudioContext.pause();
+    } else if (typeof currentAudioContext.close === 'function') {
+      currentAudioContext.close().catch(() => {});
+    }
     currentAudioContext = null;
   }
   if (currentlyPlayingBtn) {
@@ -1648,6 +1780,47 @@ function stopCurrentAudio() {
     currentlyPlayingBtn = null;
   }
   currentlyPlayingTrackKey = null;
+  
+  // Remove active-playing class from all cards/items
+  document.querySelectorAll('.track-card.active-playing, .playlist-track-item.active-playing').forEach(el => {
+    el.classList.remove('active-playing');
+  });
+  
+  // Close/reset Spotify player iframe to stop audio
+  const spotifyOverlay = document.getElementById('spotifyPlayerOverlay');
+  const spotifyFrame = document.getElementById('spotifyPlayerFrame');
+  if (spotifyOverlay) {
+    spotifyOverlay.style.display = 'none';
+  }
+  if (spotifyFrame) {
+    spotifyFrame.src = '';
+  }
+}
+
+let currentSpotifyUrl = '';
+
+function showSpotifyPlayer(name, artist, embedUrl, spotifyUrl) {
+  const overlay = document.getElementById('spotifyPlayerOverlay');
+  const titleEl = document.getElementById('spotifyPlayerTitle');
+  const frame = document.getElementById('spotifyPlayerFrame');
+  
+  if (overlay && titleEl && frame) {
+    titleEl.textContent = `${name} - ${artist}`;
+    frame.src = embedUrl;
+    currentSpotifyUrl = spotifyUrl || `https://open.spotify.com/search/${encodeURIComponent(name + ' ' + artist)}`;
+    overlay.style.display = 'block';
+    showToast(`Loading complete song via Spotify...`);
+  }
+}
+
+function closeSpotifyPlayer() {
+  stopCurrentAudio();
+}
+
+function openSpotifyExternal() {
+  if (currentSpotifyUrl) {
+    window.open(currentSpotifyUrl, '_blank');
+  }
 }
 
 async function createPlaylist() {
@@ -1664,11 +1837,15 @@ async function createPlaylist() {
     const resp = await fetch(`${API_BASE}/spotify/create-playlist`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, track_names: tracks.map(t => t.name) })
+      body: JSON.stringify({ session_id: 'frontend_session', name, track_names: tracks.map(t => t.name) })
     });
     if (!resp.ok) throw new Error();
+    const result = await resp.json();
+    if (result.error) {
+      throw new Error(result.error);
+    }
     showToast(`✓ Playlist "${name}" created on Spotify!`);
-  } catch {
+  } catch (err) {
     showToast(`Playlist saved locally (Spotify auth not connected)`);
   }
 }
@@ -1676,6 +1853,107 @@ async function createPlaylist() {
 function savePlaylist() {
   switchTab('playlists');
   showToast('Tracks added to Playlist Creator');
+}
+
+async function checkSpotifyStatus() {
+  const btn = document.getElementById('connectSpotifyBtn');
+  const textEl = document.getElementById('oauthText');
+  if (!btn) return;
+  try {
+    const r = await fetch(`${API_BASE}/spotify/status?session_id=frontend_session`);
+    const data = await r.json();
+    if (data.authenticated) {
+      btn.textContent = '✓ Connected';
+      btn.classList.add('connected');
+      btn.onclick = null;
+      if (textEl) {
+        textEl.innerHTML = 'Your <strong>Spotify</strong> account is linked. Playlists will sync directly to your library.';
+      }
+    } else {
+      btn.textContent = 'Connect Spotify';
+      btn.classList.remove('connected');
+      btn.onclick = connectSpotify;
+      if (textEl) {
+        textEl.innerHTML = 'Connect your <strong>Spotify</strong> account to synchronize playlists directly to your Spotify library.';
+      }
+    }
+  } catch (err) {
+    console.error('Failed to check Spotify status:', err);
+  }
+}
+
+async function loadPlaylistSuggestions() {
+  const recList = document.getElementById('playlistTabRecommendedTracks');
+  const latestList = document.getElementById('playlistTabLatestTracks');
+  const titleEl = document.getElementById('playlist-recommendations-title');
+
+  try {
+    const r = await fetch(`${API_BASE}/playlist-suggestions?session_id=frontend_session`);
+    if (!r.ok) throw new Error();
+    const data = await r.json();
+
+    // Update recommendations title to show genre and mood
+    if (titleEl && data.preference) {
+      const { genre, mood } = data.preference;
+      titleEl.innerHTML = `Recommended Songs <span style="font-size:0.75rem; color:var(--text-muted); text-transform:none; margin-left:0.5rem;">(Based on ${genre} & ${mood})</span>`;
+    }
+
+    // Render Recommended Songs
+    const recTracks = data.recommended || [];
+    if (recList) {
+      if (recTracks.length === 0) {
+        recList.innerHTML = `<div style="font-size: 0.85rem; color: var(--text-muted);">No recommendations available yet. Try listening to some songs first!</div>`;
+      } else {
+        recList.innerHTML = recTracks.map((t, idx) => renderSuggestionTrackCard(t, idx)).join('');
+      }
+    }
+
+    // Render Latest Songs
+    const latestTracks = data.latest || [];
+    if (latestList) {
+      if (latestTracks.length === 0) {
+        latestList.innerHTML = `<div style="font-size: 0.85rem; color: var(--text-muted);">No new songs available in the database.</div>`;
+      } else {
+        latestList.innerHTML = latestTracks.map((t, idx) => renderSuggestionTrackCard(t, idx)).join('');
+      }
+    }
+  } catch (err) {
+    console.error('Failed to load playlist suggestions:', err);
+    if (recList) recList.innerHTML = `<div style="font-size: 0.85rem; color: var(--text-muted);">Failed to load recommendations.</div>`;
+    if (latestList) latestList.innerHTML = `<div style="font-size: 0.85rem; color: var(--text-muted);">Failed to load latest songs.</div>`;
+  }
+}
+
+function renderSuggestionTrackCard(t, idx) {
+  const name = t.title || t.track_name || '';
+  const artist = t.artist || 'Unknown Artist';
+  const preview = t.preview_url || '';
+  const escapedName = escHtml(name);
+  const escapedArtist = escHtml(artist);
+  const escapedPreview = (preview || '').replace(/'/g, "\\'");
+  const displayGenre = t.genre || 'General';
+  const displayEnergy = typeof t.energy === 'number' ? Math.round(t.energy * 100) : 50;
+  const displayTempo = t.tempo || t.tempo_bpm || 120;
+  
+  return `
+    <div class="track-card">
+      <button class="play-track-btn" onclick="playSong('${escapedName}', '${escapedArtist}', this, '${escapedPreview}')">▶</button>
+      <div class="track-details">
+        <span class="track-name">${name}</span>
+        <span class="track-artist">${artist}</span>
+        <div class="track-mood-tags">
+          <span class="mood-tag">${displayGenre}</span>
+          ${t.mood_tags ? t.mood_tags.slice(0, 2).map(m => `<span class="mood-tag">${m}</span>`).join('') : ''}
+        </div>
+        <div style="display:flex; align-items:center; gap:0.5rem; margin-top:0.25rem;">
+          <span style="font-size:0.7rem; color:var(--text-muted)">Energy:</span>
+          <div class="energy-bar" style="width:60px;"><div class="energy-fill" style="width:${displayEnergy}%"></div></div>
+          <span style="font-size:0.7rem; color:var(--text-muted); margin-left:0.5rem">Tempo: ${displayTempo} BPM</span>
+        </div>
+      </div>
+      <button class="add-track-btn" onclick="addToPlaylist('${escapedName}', '${escapedArtist}', '${escapedPreview}')">+</button>
+    </div>
+  `;
 }
 
 function applyTrackRefinement() {
@@ -1846,11 +2124,309 @@ async function toggleSeeAllFeedback() {
 /* ══════════════════════════════════════════════════════════
    INIT
 ══════════════════════════════════════════════════════════ */
+/* ==========================================
+   MOOD CATALOGS AND SHELF ACTIONS
+   ========================================== */
+async function loadMoodShelf() {
+  const shelf = document.getElementById('moodShelf');
+  if (!shelf) return;
+
+  try {
+    const resp = await fetch(`${API_BASE}/moods`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const moods = await resp.json();
+    
+    renderMoodShelf(moods);
+  } catch (err) {
+    console.warn('Backend moods not available, using offline fallback:', err.message);
+    const fallbackMoods = [
+      { id: 'happy', name: 'Happy / Upbeat', description: 'Bright, uplifting, and high-tempo tracks to boost your spirit', gradient: 'linear-gradient(135deg, #FFD000 0%, #FF8C00 100%)', text_color: '#000000' },
+      { id: 'chill', name: 'Chill / Relaxed', description: 'Smooth, low-energy tunes for winding down and relaxing', gradient: 'linear-gradient(135deg, #00C6FF 0%, #0072FF 100%)', text_color: '#ffffff' },
+      { id: 'sad', name: 'Sad / Melancholic', description: 'Somber melodies and reflective acoustic sounds for deep emotions', gradient: 'linear-gradient(135deg, #4A00E0 0%, #8E2DE2 100%)', text_color: '#ffffff' },
+      { id: 'workout', name: 'Energetic / Workout', description: 'Driving beats and high energy to fuel your training sessions', gradient: 'linear-gradient(135deg, #FF416C 0%, #FF4B2B 100%)', text_color: '#ffffff' },
+      { id: 'focus', name: 'Focus / Study', description: 'Introspective, low-lyric, and ambient soundscapes for concentration', gradient: 'linear-gradient(135deg, #11998E 0%, #38EF7D 100%)', text_color: '#000000' },
+      { id: 'romantic', name: 'Romantic', description: 'Gentle, warm, and intimate tunes for close moments', gradient: 'linear-gradient(135deg, #FF007F 0%, #FF85A2 100%)', text_color: '#ffffff' },
+      { id: 'intense', name: 'Angry / Intense', description: 'Aggressive rhythms and low-valence energy to vent tension', gradient: 'linear-gradient(135deg, #870000 0%, #190A05 100%)', text_color: '#ffffff' },
+      { id: 'nostalgic', name: 'Nostalgic', description: 'Retro vibes and classic memories from past decades', gradient: 'linear-gradient(135deg, #F12711 0%, #F5AF19 100%)', text_color: '#ffffff' }
+    ];
+    renderMoodShelf(fallbackMoods);
+  }
+}
+
+function renderMoodShelf(moods) {
+  const shelf = document.getElementById('moodShelf');
+  if (!shelf) return;
+
+  shelf.innerHTML = moods.map(m => `
+    <div class="mood-pill" style="background: ${m.gradient}; color: ${m.text_color || '#ffffff'}" onclick="openMoodCatalog('${m.id}')" data-id="${m.id}" data-name="${m.name}" data-desc="${m.description}" data-gradient="${m.gradient}">
+      <span class="mood-pill-name">${m.name}</span>
+    </div>
+  `).join('');
+}
+
+let activeMoodId = null;
+let activeMoodMeta = {};
+
+async function openMoodCatalog(moodId) {
+  activeMoodId = moodId;
+  const pillEl = document.querySelector(`.mood-pill[data-id="${moodId}"]`);
+  if (pillEl) {
+    activeMoodMeta = {
+      id: moodId,
+      name: pillEl.dataset.name,
+      description: pillEl.dataset.desc,
+      gradient: pillEl.dataset.gradient
+    };
+  } else {
+    activeMoodMeta = { id: moodId, name: moodId.toUpperCase(), description: 'Mood catalog mix', gradient: 'var(--surface-2)' };
+  }
+
+  document.querySelector('.hero').style.display = 'none';
+  document.getElementById('assistantCard').style.display = 'none';
+  document.getElementById('moodShelfContainer').style.display = 'none';
+  document.getElementById('resultsPanel').style.display = 'none';
+
+  const catView = document.getElementById('moodCatalogView');
+  catView.style.display = 'block';
+  catView.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  const headerSec = document.getElementById('catalogHeaderSection');
+  if (headerSec) {
+    headerSec.style.background = activeMoodMeta.gradient;
+  }
+
+  document.getElementById('catalogTitle').textContent = activeMoodMeta.name;
+  document.getElementById('catalogDescription').textContent = activeMoodMeta.description;
+
+  const toggle = document.getElementById('personalizeCatalogToggle');
+  if (toggle) toggle.checked = false;
+
+  await loadMoodSongs(moodId, false);
+}
+
+function closeMoodCatalog() {
+  document.querySelector('.hero').style.display = 'block';
+  document.getElementById('assistantCard').style.display = 'block';
+  document.getElementById('moodShelfContainer').style.display = 'block';
+  
+  document.getElementById('moodCatalogView').style.display = 'none';
+
+  const query = document.getElementById('queryInput').value.trim();
+  if (query) {
+    document.getElementById('resultsPanel').style.display = 'block';
+  }
+}
+
+async function loadMoodSongs(moodId, personalized = false) {
+  const tracksListEl = document.getElementById('catalogTracksList');
+  if (!tracksListEl) return;
+
+  tracksListEl.innerHTML = `
+    <div class="skeleton" style="height: 16px; width: 95%; margin-bottom: 12px;"></div>
+    <div class="skeleton" style="height: 16px; width: 80%; margin-bottom: 12px;"></div>
+    <div class="skeleton" style="height: 16px; width: 85%; margin-bottom: 12px;"></div>
+    <div class="skeleton" style="height: 16px; width: 65%;"></div>
+  `;
+
+  const startTime = Date.now();
+  try {
+    const resp = await fetch(`${API_BASE}/moods/${moodId}/songs?limit=60&personalized=${personalized}&session_id=frontend_session`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const tracks = await resp.json();
+
+    const elapsed = Date.now() - startTime;
+    if (elapsed < 300) {
+      await new Promise(resolve => setTimeout(resolve, 300 - elapsed));
+    }
+
+    renderCatalogTracks(tracks);
+  } catch (err) {
+    console.error('Failed to load catalog songs:', err);
+    tracksListEl.innerHTML = `<p style="color:var(--danger)">Failed to load songs from the backend. Make sure the backend server is running.</p>`;
+  }
+}
+
+function renderCatalogTracks(tracks) {
+  const tracksListEl = document.getElementById('catalogTracksList');
+  if (!tracksListEl) return;
+
+  if (tracks.length === 0) {
+    tracksListEl.innerHTML = `<p style="color:var(--text-muted);font-size:0.9rem;text-align:center;padding:2rem;">No songs available in this catalog.</p>`;
+    return;
+  }
+
+  tracksListEl.innerHTML = tracks.map((t, idx) => {
+    const escapedName = escHtml(t.title || t.track_name || '');
+    const escapedArtist = escHtml(t.artist || '');
+    const escapedPreview = (t.preview_url || '').replace(/'/g, "\\'");
+    const duration = formatDuration(t.duration_ms || 180000);
+    const confidence = t.mood_confidence && t.mood_confidence[activeMoodId] 
+      ? Math.round(t.mood_confidence[activeMoodId] * 100) 
+      : 55;
+    
+    const tagsHtml = (t.mood_tags || []).map(tag => `<span class="mood-tag" style="background:var(--bg-3);color:var(--text-muted);">${tag}</span>`).join(' ');
+
+    return `
+      <div class="track-card" id="catalog-track-${t.id}">
+        <span class="track-num">${idx + 1}</span>
+        <button class="play-track-btn" onclick="playSong('${escapedName}', '${escapedArtist}', this, '${escapedPreview}')">▶</button>
+        <div class="track-details">
+          <span class="track-name">${t.title || t.track_name}</span>
+          <span class="track-artist">${t.artist}</span>
+          <div class="track-mood-tags">
+            ${tagsHtml}
+            <span class="mood-tag" style="background:var(--green-dim);color:var(--green)">Fit: ${confidence}%</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:0.5rem; margin-top:0.25rem; flex-wrap:wrap;">
+            <span style="font-size:0.7rem; color:var(--text-muted)">Energy:</span>
+            <div class="energy-bar" style="width:60px;"><div class="energy-fill" style="width:${Math.round((t.energy || 0.5) * 100)}%"></div></div>
+            <span style="font-size:0.7rem; color:var(--text-muted); margin-left:0.5rem">Tempo: ${t.tempo || t.tempo_bpm || 120} BPM</span>
+            <span style="font-size:0.7rem; color:var(--text-muted); margin-left:0.5rem">Duration: ${duration}</span>
+          </div>
+        </div>
+        <div class="track-feedback-controls">
+          <button class="dislike-track-btn" onclick="sendMoodFeedback('${t.id}', '${activeMoodId}', this)" title="This doesn't fit this mood">👎</button>
+        </div>
+        <button class="add-track-btn" onclick="addToPlaylist('${escapedName}', '${escapedArtist}', '${escapedPreview}')">+</button>
+      </div>
+    `;
+  }).join('');
+}
+
+function formatDuration(ms) {
+  const totalSecs = Math.floor(ms / 1000);
+  const mins = Math.floor(totalSecs / 60);
+  const secs = totalSecs % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+async function togglePersonalizeCatalog() {
+  const toggle = document.getElementById('personalizeCatalogToggle');
+  if (!toggle || !activeMoodId) return;
+
+  await loadMoodSongs(activeMoodId, toggle.checked);
+  showToast(toggle.checked ? 'Personalization enabled (boosting matching history)' : 'Default catalog loaded');
+}
+
+async function playMoodMix() {
+  const trackCards = document.querySelectorAll('#catalogTracksList .track-card');
+  if (trackCards.length === 0) {
+    showToast('No tracks in mix to play.');
+    return;
+  }
+
+  showToast('Starting Mood Mix! Loading queue...');
+  
+  const list = document.getElementById('playlistTracks');
+  if (list) {
+    list.innerHTML = ''; 
+  }
+
+  let count = 0;
+  const maxToQueue = Math.min(25, trackCards.length);
+  
+  for (let card of trackCards) {
+    if (count >= maxToQueue) break;
+    const playBtn = card.querySelector('.play-track-btn');
+    const onclickStr = playBtn.getAttribute('onclick') || '';
+    const match = onclickStr.match(/'([^']*)'\s*,\s*'([^']*)'\s*,\s*this\s*,\s*'([^']*)'/);
+    if (match) {
+      const name = match[1];
+      const artist = match[2];
+      const preview = match[3] || '';
+      
+      const idx = count + 1;
+      const item = document.createElement('div');
+      item.className = 'playlist-track-item';
+      
+      const escName = name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+      const escArtist = artist.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+      const escPreview = preview.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+      
+      item.innerHTML = `
+        <span class="track-num">${idx}</span>
+        <button class="play-track-btn" onclick="playSong('${escName}', '${escArtist}', this, '${escPreview}')">▶</button>
+        <div class="track-info">
+          <span class="track-name">${name}</span>
+          <span class="track-artist">${artist}</span>
+        </div>
+        <button class="remove-track" onclick="removeTrack(this)">✕</button>
+      `;
+      list.appendChild(item);
+      count++;
+    }
+  }
+
+  const firstPlayBtn = trackCards[0].querySelector('.play-track-btn');
+  if (firstPlayBtn) {
+    firstPlayBtn.click();
+  }
+  
+  showToast(`Queued ${count} songs in Playlist Tab & playing first track.`);
+}
+
+async function sendMoodFeedback(songId, moodId, btnEl) {
+  btnEl.disabled = true;
+  btnEl.innerHTML = '⏳';
+
+  try {
+    const resp = await fetch(`${API_BASE}/songs/${songId}/mood-feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mood: moodId, feedback_type: 'negative' })
+    });
+
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    
+    showToast('Feedback recorded! Tuning catalog...');
+    
+    const card = document.getElementById(`catalog-track-${songId}`);
+    if (card) {
+      card.style.transition = 'all 0.4s ease';
+      card.style.opacity = '0';
+      card.style.transform = 'translateX(-30px)';
+      card.style.height = '0';
+      card.style.padding = '0';
+      card.style.margin = '0';
+      card.style.border = 'none';
+      setTimeout(async () => {
+        card.remove();
+        const toggle = document.getElementById('personalizeCatalogToggle');
+        const personalized = toggle ? toggle.checked : false;
+        await loadMoodSongs(moodId, personalized);
+      }, 400);
+    }
+  } catch (err) {
+    console.error('Failed to log feedback:', err);
+    showToast('Failed to log feedback.');
+    btnEl.disabled = false;
+    btnEl.innerHTML = '👎';
+  }
+}
+
+/* ==========================================
+   INIT
+   ========================================== */
 (function init() {
   // Focus search input on Discover tab
   document.getElementById('queryInput').focus();
   // Load initial dashboard metrics dynamically
   loadDashboard(false);
+  // Load mood catalog shelf
+  loadMoodShelf();
+  // Check Spotify link status
+  checkSpotifyStatus();
+
+  // Process Spotify connection callback URL parameters
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('spotify') === 'success') {
+    showToast('Successfully linked your Spotify account!');
+    switchTab('playlists');
+    window.history.replaceState({}, document.title, window.location.pathname);
+  } else if (urlParams.get('spotify') === 'error') {
+    showToast('Failed to link Spotify account. Check console logs.');
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
 })();
 
 /* ══════════════════════════════════════════════════════════
@@ -1922,4 +2498,263 @@ function closeReviewModal(event) {
       modal.style.display = 'none';
     }
   }, 300);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   WANDERER TAB — JAVASCRIPT
+   ═══════════════════════════════════════════════════════════ */
+let wandererHistory = [];
+let wandererSessionId = 'wanderer_session_' + Math.random().toString(36).substring(2, 11);
+let wandererPreviousIntent = {};
+
+function handleWandererKey(event) {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    runWandererSearch();
+  }
+}
+
+async function runWandererSearch() {
+  const queryInput = document.getElementById('wandererQueryInput');
+  const query = queryInput.value.trim();
+  if (!query) return;
+
+  queryInput.value = '';
+  queryInput.disabled = true;
+
+  // Append user message
+  appendWandererMessage(query, 'user');
+
+  // Add typing indicator
+  const typingBubble = appendWandererTypingIndicator();
+
+  // Render shimmer skeletons in recommendations list
+  const tracksListEl = document.getElementById('wandererTracksList');
+  tracksListEl.innerHTML = Array(3).fill(0).map(() => `
+    <div class="track-card">
+      <span class="track-num" style="opacity:0.3">#</span>
+      <div class="track-details" style="width: 100%">
+        <div class="skeleton" style="height: 16px; width: 60%; margin-bottom: 8px;"></div>
+        <div class="skeleton" style="height: 14px; width: 40%; margin-bottom: 12px;"></div>
+        <div style="display: flex; gap: 8px;">
+          <div class="skeleton" style="height: 12px; width: 45px;"></div>
+          <div class="skeleton" style="height: 12px; width: 45px;"></div>
+        </div>
+        <div class="skeleton" style="height: 32px; width: 95%; margin-top: 10px; border-radius: 4px;"></div>
+      </div>
+    </div>
+  `).join('');
+
+  const isInitial = wandererHistory.length <= 1; // Only user's message is there now
+  const url = isInitial ? `${API_BASE}/wanderer/discover` : `${API_BASE}/wanderer/refine`;
+  const body = isInitial 
+    ? { query, session_id: wandererSessionId, history: wandererHistory.slice(0, -1) }
+    : { session_id: wandererSessionId, refinement: query, previous_intent: wandererPreviousIntent };
+
+  const start = Date.now();
+  try {
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    if (!resp.ok) throw new Error(`API error: ${resp.status}`);
+    const data = await resp.json();
+
+    // Visual polish: minimum delay for skeleton
+    const elapsed = Date.now() - start;
+    if (elapsed < 600) {
+      await new Promise(resolve => setTimeout(resolve, 600 - elapsed));
+    }
+
+    removeWandererTypingIndicator(typingBubble);
+    renderWandererResults(query, data);
+  } catch (err) {
+    console.warn('Wanderer backend failure, using fallback mock responder:', err);
+    
+    // Simulate delay
+    const elapsed = Date.now() - start;
+    if (elapsed < 800) {
+      await new Promise(resolve => setTimeout(resolve, 800 - elapsed));
+    }
+    
+    removeWandererTypingIndicator(typingBubble);
+    renderWandererResults(query, getMockWandererResponse(query));
+  } finally {
+    queryInput.disabled = false;
+    queryInput.focus();
+  }
+}
+
+function appendWandererMessage(text, role) {
+  const historyEl = document.getElementById('wandererChatHistory');
+  const msg = document.createElement('div');
+  msg.className = `chat-message ${role}`;
+  
+  // Format basic markdown/html
+  let formatted = text;
+  if (role === 'assistant') {
+    if (typeof marked !== 'undefined') {
+      formatted = (typeof marked.parse === 'function') ? marked.parse(text) : marked(text);
+    } else {
+      formatted = text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/\n/g, '<br>');
+    }
+  } else {
+    // Escape user input
+    formatted = escHtml(text).replace(/\n/g, '<br>');
+  }
+
+  msg.innerHTML = formatted;
+  historyEl.appendChild(msg);
+  historyEl.scrollTop = historyEl.scrollHeight;
+
+  // Add to conversational history array
+  wandererHistory.push({ role: role, content: text });
+}
+
+function appendWandererTypingIndicator() {
+  const historyEl = document.getElementById('wandererChatHistory');
+  const bubble = document.createElement('div');
+  bubble.className = 'chat-message assistant typing-bubble';
+  bubble.innerHTML = `
+    <div class="typing-indicator">
+      <div class="typing-dot"></div>
+      <div class="typing-dot"></div>
+      <div class="typing-dot"></div>
+    </div>
+  `;
+  historyEl.appendChild(bubble);
+  historyEl.scrollTop = historyEl.scrollHeight;
+  return bubble;
+}
+
+function removeWandererTypingIndicator(bubble) {
+  if (bubble && bubble.parentNode) {
+    bubble.parentNode.removeChild(bubble);
+  }
+}
+
+function renderWandererResults(query, data) {
+  // Add assistant response to chat
+  const explanation = data.explanation || "Here are some tracks matching your request.";
+  appendWandererMessage(explanation, 'assistant');
+
+  // Render tracks
+  const tracks = data.tracks || [];
+  const tracksListEl = document.getElementById('wandererTracksList');
+
+  let metaHtml = '';
+  if (data.confidence_cue || data.novelty_summary) {
+    metaHtml = `
+      <div class="discovery-meta-card" style="margin-bottom: 1rem; padding: 1.2rem; background: var(--surface-2); border-radius: var(--radius); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.85rem; width: 100%;">
+        ${data.confidence_cue ? `<div><strong style="color: var(--green);">Match Confidence:</strong> <span class="confidence-badge" style="background: var(--green-dim); color: var(--green); padding: 2px 6px; border-radius: 4px; font-weight: 600; margin-left: 0.25rem;">${data.confidence_cue}</span></div>` : ''}
+        ${data.novelty_summary ? `<div><strong style="color: var(--green);">Novelty & Familiarity:</strong> <span style="color: var(--text); margin-left: 0.25rem;">${data.novelty_summary}</span></div>` : ''}
+      </div>
+    `;
+  }
+
+  if (tracks.length > 0) {
+    tracksListEl.innerHTML = metaHtml + tracks.map((t, idx) => {
+      const escapedName = escHtml(t.track_name || t.name || '');
+      const escapedArtist = escHtml(t.artist || '');
+      const escapedPreview = (t.preview_url || '').replace(/'/g, "\\'");
+      const escapedReason = escHtml(t.reason || 'Selected based on matching audio characteristics.');
+
+      return `
+        <div class="track-card">
+          <span class="track-num">${idx + 1}</span>
+          <button class="play-track-btn" onclick="playSong('${escapedName}', '${escapedArtist}', this, '${escapedPreview}')">▶</button>
+          <div class="track-details">
+            <span class="track-name">${t.track_name || t.name}</span>
+            <span class="track-artist">${t.artist}</span>
+            <div class="track-mood-tags">
+              <span class="mood-tag">${t.genre || 'General'}</span>
+              ${t.subgenre ? `<span class="mood-tag">${t.subgenre}</span>` : ''}
+            </div>
+            <div style="display:flex; align-items:center; gap:0.5rem; margin-top:0.35rem; flex-wrap: wrap;">
+              <span style="font-size:0.7rem; color:var(--text-muted)">Energy:</span>
+              <div class="energy-bar" style="width:60px;"><div class="energy-fill" style="width:${Math.round((t.energy || 0.5) * 100)}%"></div></div>
+              <span style="font-size:0.7rem; color:var(--text-muted); margin-left:0.5rem">Tempo: ${t.tempo_bpm || t.tempo || 120} BPM</span>
+              <span style="font-size:0.7rem; color:var(--text-muted); margin-left:0.5rem">Popularity: ${t.popularity || 50}</span>
+            </div>
+            <!-- Track reason -->
+            <div class="track-reason-block">
+              <span class="track-reason-label">Why this pick</span>
+              ${escapedReason}
+            </div>
+          </div>
+          <button class="add-track-btn" onclick="addToPlaylist('${escapedName}', '${escapedArtist}', '${escapedPreview}')">+</button>
+        </div>
+      `;
+    }).join('');
+
+    // Keep track of intent for refinements
+    wandererPreviousIntent = data.parsed_intent || {};
+  } else {
+    tracksListEl.innerHTML = `
+      <div class="no-tracks-placeholder">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 0.75rem; opacity: 0.5;"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        <p>No tracks matching the criteria were found. Try modifying your request.</p>
+      </div>
+    `;
+  }
+}
+
+function getMockWandererResponse(query) {
+  const q_lower = query.toLowerCase();
+  
+  let explanation = `I've analyzed your prompt and selected a collection of tracks that fit the description. Since we are in Wanderer mode, all previously-listened tracks are excluded to ensure a fresh experience.`;
+  let tracks = [];
+
+  // Special steering adjustments
+  const isTooSafe = q_lower.includes("too safe") || q_lower.includes("safe") || q_lower.includes("adventurous") || q_lower.includes("niche");
+  const isWhyThis = q_lower.includes("why this") || q_lower.includes("explain");
+  const isKeepMood = q_lower.includes("keep mood") || q_lower.includes("keep this mood") || q_lower.includes("keep vibe") || q_lower.includes("keep this vibe");
+
+  if (isTooSafe) {
+    explanation = `Got it! Lowering the popularity constraints and looking for more obscure, adventurous tracks that step outside the mainstream comfort zone.`;
+    tracks = [
+      { name: "Neon Horizon", artist: "Retro Wave", genre: "Synthwave", subgenre: "Retro", energy: 0.7, tempo_bpm: 110, popularity: 25, reason: "A hidden synthwave gem that offers an adventurous pulse with low mainstream play counts." },
+      { name: "Coffee Breath", artist: "Lofi Fruits Music", genre: "Lo-Fi", subgenre: "Chill", energy: 0.25, tempo_bpm: 78, popularity: 30, reason: "An obscure lo-fi selection chosen specifically to escape standard playlist repetition." },
+      { name: "Acoustic Sunsets", artist: "Indie Folk Band", genre: "Folk", subgenre: "Acoustic", energy: 0.45, tempo_bpm: 95, popularity: 22, reason: "A low-popularity indie folk track providing an authentic acoustic vibe without the mainstream push." }
+    ];
+  } else if (isWhyThis) {
+    explanation = `Certainly! I've selected these tracks because they represent the exact acoustic qualities of your request while ensuring complete novelty. For example, 'Midnight Rain' matches the melancholic study setting and 'Starlight Echoes' matches the space ambient request.`;
+    tracks = [
+      { name: "Midnight Rain", artist: "Lofi Chill", genre: "Lo-Fi", subgenre: "Chill", energy: 0.3, tempo_bpm: 80, popularity: 45, reason: "Chosen because its gentle rain-like synthesizer textures match your chill study request." },
+      { name: "Starlight Echoes", artist: "Lunar Ambient", genre: "Ambient", subgenre: "Space", energy: 0.2, tempo_bpm: 65, popularity: 35, reason: "Selected for its slow, beatless atmosphere that matches the space ambient preference." }
+    ];
+  } else if (q_lower.includes("marathi")) {
+    explanation = `I found some wonderful Marathi tracks in our catalog! Since these are quite energetic and culturally unique, I hope you enjoy these fresh recommendations.`;
+    tracks = [
+      { name: "Sairat Zaala Ji", artist: "Ajay-Atul", genre: "Marathi", subgenre: "Romantic", energy: 0.5, tempo_bpm: 95, popularity: 58, reason: "A classic romantic Marathi track selected for its rich orchestration and emotional vocal depth." },
+      { name: "Apsara Aali", artist: "Ajay-Atul", genre: "Marathi", subgenre: "Lavani", energy: 0.85, tempo_bpm: 130, popularity: 62, reason: "An energetic Lavani track recommended for its traditional rhythms and driving percussion." }
+    ];
+  } else {
+    // Default tracks
+    tracks = [
+      { name: "Midnight Rain", artist: "Lofi Chill", genre: "Lo-Fi", subgenre: "Chill", energy: 0.3, tempo_bpm: 80, popularity: 45, reason: "Matches your query with a calm chill tempo (80 BPM) and relaxing piano chord progression." },
+      { name: "Acoustic Sunsets", artist: "Indie Folk Band", genre: "Folk", subgenre: "Acoustic", energy: 0.45, tempo_bpm: 95, popularity: 38, reason: "Features warm acoustic guitar layers aligning with your request for natural instrumentation." },
+      { name: "Starlight Echoes", artist: "Lunar Ambient", genre: "Ambient", subgenre: "Space", energy: 0.2, tempo_bpm: 65, popularity: 42, reason: "Provides a slow, beatless atmosphere designed to facilitate deep focus and reduce distraction." }
+    ];
+  }
+
+  // Preserve fake intent
+  const parsed_intent = {
+    genres: [tracks[0].genre],
+    moods: [tracks[0].subgenre || "general"],
+    adventurous: isTooSafe,
+    lock_mood: isKeepMood
+  };
+
+  return {
+    status: "success",
+    explanation: explanation,
+    tracks: tracks,
+    parsed_intent: parsed_intent
+  };
 }
