@@ -16,7 +16,7 @@ window.addEventListener('unhandledrejection', function (event) {
   }
 });
 
-const API_BASE = 'http://localhost:8081/api/v1';
+const API_BASE = 'http://localhost:8082/api/v1';
 
 const topicDisplayNames = {
   "Algorithmic Bubble / Recommendation Repetition": "Algorithmic Bubble",
@@ -69,6 +69,7 @@ function switchTab(tabId) {
   if (tabId === 'playlists') {
     checkSpotifyStatus();
     loadPlaylistSuggestions();
+    loadLocalPlaylists();
   }
 
   // Initialize/focus Wanderer input
@@ -1566,6 +1567,7 @@ function addToPlaylist(name, artist, previewUrl = '') {
   const idx = list.children.length + 1;
   const item = document.createElement('div');
   item.className = 'playlist-track-item';
+  item.setAttribute('data-preview-url', previewUrl || '');
   
   const escName = name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
   const escArtist = artist.replace(/'/g, "\\'").replace(/"/g, '&quot;');
@@ -1844,9 +1846,198 @@ async function createPlaylist() {
     if (result.error) {
       throw new Error(result.error);
     }
-    showToast(`✓ Playlist "${name}" created on Spotify!`);
+    if (result.mode === 'mock') {
+      showToast(`Playlist saved locally (Spotify auth not connected)`);
+      savePlaylistLocally();
+    } else {
+      showToast(`✓ Playlist "${name}" created on Spotify!`);
+    }
   } catch (err) {
     showToast(`Playlist saved locally (Spotify auth not connected)`);
+    savePlaylistLocally();
+  }
+}
+
+async function savePlaylistLocally() {
+  const nameInput = document.getElementById('playlistName');
+  const name = nameInput ? nameInput.value.trim() || 'AI Discovery Playlist' : 'AI Discovery Playlist';
+  
+  const tracks = Array.from(document.querySelectorAll('.playlist-track-item')).map(el => ({
+    title: el.querySelector('.track-name').textContent,
+    artist: el.querySelector('.track-artist').textContent,
+    preview_url: el.getAttribute('data-preview-url') || ''
+  }));
+
+  if (!tracks.length) { showToast('Add some tracks first.'); return; }
+
+  const btn = document.getElementById('saveLocalBtn');
+  if (btn) btn.disabled = true;
+  
+  try {
+    const resp = await fetch(`${API_BASE}/local-playlists`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, tracks })
+    });
+    if (!resp.ok) throw new Error();
+    const result = await resp.json();
+    showToast(`✓ Playlist "${name}" saved locally!`);
+    loadLocalPlaylists();
+  } catch (err) {
+    console.error('Failed to save playlist locally:', err);
+    showToast('Failed to save playlist locally.');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function loadLocalPlaylists() {
+  const listEl = document.getElementById('localPlaylistsList');
+  if (!listEl) return;
+
+  try {
+    const r = await fetch(`${API_BASE}/local-playlists`);
+    if (!r.ok) throw new Error();
+    const playlists = await r.json();
+
+    if (playlists.length === 0) {
+      listEl.innerHTML = `<div style="font-size: 0.85rem; color: var(--text-muted);">No locally saved playlists yet.</div>`;
+      return;
+    }
+
+    listEl.innerHTML = playlists.map(p => {
+      const escapedName = escHtml(p.name);
+      const dateStr = new Date(p.created_at).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      return `
+        <div class="local-playlist-card" id="local-playlist-${p.id}">
+          <div class="local-playlist-info">
+            <span class="local-playlist-name">${escapedName}</span>
+            <span class="local-playlist-meta">${p.tracks.length} tracks • Saved ${dateStr}</span>
+          </div>
+          <div class="local-playlist-actions">
+            <button class="local-playlist-btn load" onclick="loadLocalPlaylist('${p.id}')" title="Load into Builder">
+              Load
+            </button>
+            <button class="local-playlist-btn delete" onclick="deleteLocalPlaylist('${p.id}')" title="Delete">
+              ✕
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (err) {
+    console.error('Failed to load local playlists:', err);
+    listEl.innerHTML = `<div style="font-size: 0.85rem; color: var(--text-muted);">Failed to load saved playlists.</div>`;
+  }
+}
+
+async function loadLocalPlaylist(playlistId) {
+  try {
+    const r = await fetch(`${API_BASE}/local-playlists`);
+    if (!r.ok) throw new Error();
+    const playlists = await r.json();
+    const playlist = playlists.find(p => p.id === playlistId);
+    if (!playlist) {
+      showToast('Playlist not found.');
+      return;
+    }
+
+    // Set name in input
+    const nameInput = document.getElementById('playlistName');
+    if (nameInput) nameInput.value = playlist.name;
+
+    // Clear and reload tracks in builder
+    const list = document.getElementById('playlistTracks');
+    if (list) {
+      list.innerHTML = '';
+      stopCurrentAudio();
+      
+      const tracks = playlist.tracks || [];
+      tracks.forEach((t, index) => {
+        const idx = index + 1;
+        const item = document.createElement('div');
+        item.className = 'playlist-track-item';
+        
+        const title = t.title || t.name || '';
+        const artist = t.artist || '';
+        const previewUrl = t.preview_url || t.previewUrl || '';
+        
+        item.setAttribute('data-preview-url', previewUrl);
+        
+        const escName = title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const escArtist = artist.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const escPreview = previewUrl.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        
+        item.innerHTML = `
+          <span class="track-num">${idx}</span>
+          <button class="play-track-btn" onclick="playSong('${escName}', '${escArtist}', this, '${escPreview}')">▶</button>
+          <div class="track-info">
+            <span class="track-name">${title}</span>
+            <span class="track-artist">${artist}</span>
+          </div>
+          <button class="remove-track" onclick="removeTrack(this)">✕</button>
+        `;
+        list.appendChild(item);
+      });
+      showToast(`Loaded "${playlist.name}" into builder.`);
+    }
+  } catch (err) {
+    console.error('Failed to load playlist:', err);
+    showToast('Failed to load playlist into builder.');
+  }
+}
+
+async function deleteLocalPlaylist(playlistId) {
+  // Optimistically remove from UI immediately
+  const card = document.getElementById(`local-playlist-${playlistId}`);
+  if (card) {
+    card.remove();
+  }
+  
+  // If no playlists are left, show the fallback message
+  const listEl = document.getElementById('localPlaylistsList');
+  if (listEl && listEl.children.length === 0) {
+    listEl.innerHTML = `<div style="font-size: 0.85rem; color: var(--text-muted);">No locally saved playlists yet.</div>`;
+  }
+
+  try {
+    const resp = await fetch(`${API_BASE}/local-playlists/${playlistId}`, {
+      method: 'DELETE'
+    });
+    if (!resp.ok) throw new Error();
+    showToast('Playlist deleted.');
+  } catch (err) {
+    console.error('Failed to delete playlist:', err);
+    showToast('Failed to delete playlist from database.');
+    loadLocalPlaylists();
+  }
+}
+
+async function syncLocalPlaylist(playlistId, name, tracksJson) {
+  const tracks = JSON.parse(tracksJson.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'));
+  if (!tracks.length) { showToast('No tracks in this playlist.'); return; }
+  
+  showToast(`Syncing "${name}" to Spotify...`);
+  try {
+    const resp = await fetch(`${API_BASE}/spotify/create-playlist`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: 'frontend_session', name, track_names: tracks.map(t => t.title) })
+    });
+    if (!resp.ok) throw new Error();
+    const result = await resp.json();
+    if (result.error) {
+      throw new Error(result.error);
+    }
+    showToast(`✓ Playlist "${name}" synced to Spotify!`);
+  } catch (err) {
+    showToast(`Spotify sync failed. Connect Spotify account first.`);
   }
 }
 
@@ -1920,7 +2111,7 @@ async function loadPlaylistSuggestions() {
   } catch (err) {
     console.error('Failed to load playlist suggestions:', err);
     if (recList) recList.innerHTML = `<div style="font-size: 0.85rem; color: var(--text-muted);">Failed to load recommendations.</div>`;
-    if (latestList) latestList.innerHTML = `<div style="font-size: 0.85rem; color: var(--text-muted);">Failed to load latest songs.</div>`;
+    if (latestList) latestList.innerHTML = `<div style="font-size: 0.85rem; color: var(--text-muted);">Failed to load new songs.</div>`;
   }
 }
 

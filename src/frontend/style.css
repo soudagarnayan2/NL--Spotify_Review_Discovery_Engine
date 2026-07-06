@@ -1968,6 +1968,7 @@ input:checked + .slider:before {
 
 .wanderer-query-input {
   flex: 1;
+  min-width: 0;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -2335,5 +2336,147 @@ input:checked + .slider:before {
 
 .play-track-btn.playing:hover {
   content: '⏸';
+}
+
+/* ═══════════════════════════════════════════════════════════
+   LOCAL PLAYLIST CARD STYLES
+   ═══════════════════════════════════════════════════════════ */
+.local-playlists-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.local-playlist-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  transition: all var(--transition);
+}
+
+.local-playlist-card:hover {
+  border-color: rgba(29, 185, 84, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+.local-playlist-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.local-playlist-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.local-playlist-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.local-playlist-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.local-playlist-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.35rem 0.65rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all var(--transition);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.local-playlist-btn.load:hover {
+  background: var(--green-dim);
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.local-playlist-btn.sync:hover {
+  background: rgba(29, 185, 84, 0.8);
+  border-color: var(--green);
+  color: #fff;
+}
+
+.local-playlist-btn.delete:hover {
+  background: rgba(235, 87, 87, 0.15);
+  border-color: #eb5757;
+  color: #eb5757;
+}
+
+/* Firefox scrollbar styles */
+.wanderer-chat-history,
+.tracks-list,
+.playlist-tracks {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+/* Webkit scrollbar styles (Chrome, Safari, Edge, Opera, iOS/Android Webviews) */
+.wanderer-chat-history::-webkit-scrollbar,
+.tracks-list::-webkit-scrollbar,
+.playlist-tracks::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.wanderer-chat-history::-webkit-scrollbar-track,
+.tracks-list::-webkit-scrollbar-track,
+.playlist-tracks::-webkit-scrollbar-track {
+  background: transparent;
+}
+.wanderer-chat-history::-webkit-scrollbar-thumb,
+.tracks-list::-webkit-scrollbar-thumb,
+.playlist-tracks::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+.wanderer-chat-history::-webkit-scrollbar-thumb:hover,
+.tracks-list::-webkit-scrollbar-thumb:hover,
+.playlist-tracks::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Responsive adjustments for cross-platform friendliness */
+@media (max-width: 768px) {
+  .wanderer-split {
+    grid-template-columns: 1fr !important;
+    gap: 1rem;
+  }
+  .wanderer-chat-container {
+    height: 450px !important;
+  }
+  .wanderer-recommendations-container {
+    min-height: 400px !important;
+    padding: 1rem !important;
+  }
+  .chat-message {
+    max-width: 90% !important;
+    font-size: 0.85rem !important;
+    padding: 0.75rem 0.95rem !important;
+  }
+  .wanderer-chat-input-wrapper {
+    padding: 0.75rem !important;
+    gap: 0.5rem !important;
+  }
+  .wanderer-query-input {
+    padding: 0.6rem 0.85rem !important;
+    font-size: 0.85rem !important;
+  }
 }
 

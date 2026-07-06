@@ -464,7 +464,9 @@ def _apply_filters(tracks: list[dict], intent: dict) -> list[dict]:
             track_genre = track["genre"].lower()
             track_subgenre = track["subgenre"].lower()
             track_desc = track["description"].lower()
-            if any(g in track_genre or g in track_subgenre or g in track_desc for g in genres):
+            track_name = track["track_name"].lower()
+            track_artist = track["artist"].lower()
+            if any(g in track_genre or g in track_subgenre or g in track_desc or g in track_name or g in track_artist for g in genres):
                 genre_filtered.append(track)
         filtered = genre_filtered
 
@@ -473,18 +475,14 @@ def _apply_filters(tracks: list[dict], intent: dict) -> list[dict]:
         return filtered
 
     # If we got 0 results, check if we can relax
-    # If the user specified a genre, we should try to return tracks of that genre
-    # by relaxing other filters (energy, tempo, acousticness, instrumentalness)
     if genres:
-        relaxed_genre_tracks = []
-        for track in filtered:  # Wait, filtered is empty! We must search across all candidate tracks!
-            pass
-        # Let's fix this catalog relaxation fallback so it iterates over 'tracks' instead of 'filtered'
         relaxed_genre_tracks = []
         for track in tracks:
             track_genre = track["genre"].lower()
             track_subgenre = track["subgenre"].lower()
             track_desc = track["description"].lower()
+            track_name = track["track_name"].lower()
+            track_artist = track["artist"].lower()
             # Still apply exclusion filters if possible
             excluded = False
             for ex in excludes:
@@ -498,19 +496,15 @@ def _apply_filters(tracks: list[dict], intent: dict) -> list[dict]:
             if excluded:
                 continue
 
-            if any(g in track_genre or g in track_subgenre or g in track_desc for g in genres):
+            if any(g in track_genre or g in track_subgenre or g in track_desc or g in track_name or g in track_artist for g in genres):
                 relaxed_genre_tracks.append(track)
 
         if len(relaxed_genre_tracks) > 0:
             logger.info("Found %d results by relaxing audio feature filters but keeping genre constraint", len(relaxed_genre_tracks))
             return relaxed_genre_tracks
 
-        # If genres are completely absent from catalog, return empty list
-        logger.info("Requested genres %s not found in catalog, returning empty", genres)
-        return []
-
-    # If no genres were specified, and filtered is empty, we relax to semantic-only
-    logger.info("Post-filters too restrictive (0 results), relaxing to semantic-only")
+    # If we STILL have 0 results, we fall back to semantic-only (returning the top candidates 'tracks')!
+    logger.info("Post-filters and genre constraints too restrictive (0 results), relaxing to semantic-only")
     return tracks
 
 

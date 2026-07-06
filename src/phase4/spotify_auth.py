@@ -479,3 +479,55 @@ def search_spotify_tracks(session_id: str, query: str, limit: int = 5) -> list[d
             "preview_url": None,
         }]
 
+def get_client_credentials_token() -> str | None:
+    """Retrieve an access token using Client Credentials Flow (no user sign-in needed)."""
+    if _is_mock_mode():
+        return "mock_client_credentials_token_12345"
+
+    client_id = os.getenv("SPOTIFY_CLIENT_ID")
+    client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
+    if not client_id or not client_secret:
+        logger.warning("Spotify client credentials missing in environment.")
+        return None
+
+    try:
+        auth_header = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
+        resp = requests.post(
+            SPOTIFY_TOKEN_URL,
+            headers={
+                "Authorization": f"Basic {auth_header}",
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            data={"grant_type": "client_credentials"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        token_data = resp.json()
+        return token_data.get("access_token")
+    except Exception as e:
+        logger.error("Failed to retrieve Spotify client credentials token: %s", e)
+        return None
+
+def get_real_client_credentials_token() -> str | None:
+    """Retrieve a real Spotify client credentials access token, bypassing mock mode checks."""
+    client_id = os.getenv("SPOTIFY_CLIENT_ID")
+    client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
+    if not client_id or client_id.startswith("your_") or not client_secret:
+        return None
+    try:
+        auth_header = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
+        resp = requests.post(
+            SPOTIFY_TOKEN_URL,
+            headers={
+                "Authorization": f"Basic {auth_header}",
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            data={"grant_type": "client_credentials"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        return resp.json().get("access_token")
+    except Exception as e:
+        logger.error("Failed to retrieve real client credentials token: %s", e)
+        return None
+

@@ -107,6 +107,16 @@ def init_db():
         updated_at TEXT NOT NULL
     )
     """)
+
+    # Create local_playlists table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS local_playlists (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        tracks TEXT NOT NULL,
+        created_at TEXT NOT NULL
+    )
+    """)
     
     conn.commit()
     conn.close()
