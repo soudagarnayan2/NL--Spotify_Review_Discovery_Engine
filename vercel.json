@@ -1,9 +1,9 @@
 {
   "version": 2,
   "name": "spotify-review-discovery-engine",
-  "buildCommand": "node build.js",
+  "buildCommand": "node src/frontend/build.js",
   "outputDirectory": "src/frontend",
-  "installCommand": "echo 'no install needed'",
+  "installCommand": "true",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ],
