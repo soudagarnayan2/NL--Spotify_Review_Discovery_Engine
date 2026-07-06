@@ -1,7 +1,7 @@
 {
   "version": 2,
   "name": "spotify-review-discovery-engine",
-  "buildCommand": "echo \"window.BACKEND_URL = '$BACKEND_URL';\" > src/frontend/config.js",
+  "buildCommand": "node build.js",
   "outputDirectory": "src/frontend",
   "installCommand": "echo 'no install needed'",
   "rewrites": [
