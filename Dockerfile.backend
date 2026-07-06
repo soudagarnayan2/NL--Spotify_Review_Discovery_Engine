@@ -24,9 +24,6 @@ COPY src/backend/ ./src/backend/
 COPY src/phase4/ ./src/phase4/
 COPY data/ ./data/
 
-# Copy environment config (Railway injects vars at runtime)
-COPY .env .env
-
 # Expose port
 EXPOSE 8081
 
