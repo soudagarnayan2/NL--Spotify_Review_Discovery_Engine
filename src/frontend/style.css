@@ -2420,12 +2420,13 @@ input:checked + .slider:before {
   color: #eb5757;
 }
 
-/* Firefox scrollbar styles */
+/* Firefox scrollbar styles & smooth momentum scrolling on iOS */
 .wanderer-chat-history,
 .tracks-list,
 .playlist-tracks {
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Webkit scrollbar styles (Chrome, Safari, Edge, Opera, iOS/Android Webviews) */
@@ -2454,6 +2455,18 @@ input:checked + .slider:before {
 
 /* Responsive adjustments for cross-platform friendliness */
 @media (max-width: 768px) {
+  .page-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.75rem !important;
+  }
+  .page-title {
+    font-size: 1.4rem !important;
+  }
+  .bubble-breaking-badge {
+    font-size: 0.7rem !important;
+    padding: 0.25rem 0.65rem !important;
+  }
   .wanderer-split {
     grid-template-columns: 1fr !important;
     gap: 1rem;
@@ -2474,9 +2487,21 @@ input:checked + .slider:before {
     padding: 0.75rem !important;
     gap: 0.5rem !important;
   }
+  /* Set font-size to 16px to prevent automatic iOS Safari page zoom-on-focus */
+  .wanderer-query-input,
+  .query-input {
+    font-size: 16px !important;
+  }
   .wanderer-query-input {
     padding: 0.6rem 0.85rem !important;
-    font-size: 0.85rem !important;
+  }
+  .track-card {
+    padding: 0.75rem !important;
+    gap: 0.6rem !important;
+  }
+  .track-num {
+    font-size: 1.1rem !important;
+    min-width: 20px !important;
   }
 }
 

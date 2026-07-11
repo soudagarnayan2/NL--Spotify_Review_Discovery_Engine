@@ -37,6 +37,7 @@ jobs:
         with:
           python-version: "3.11"
           cache: "pip"
+          cache-dependency-path: "requirements-backend.txt"
 
       # ── 3. Install Dependencies ─────────────────────────────────────────
       - name: Install backend dependencies
